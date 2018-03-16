@@ -16,7 +16,7 @@
 long ticks = 0;
 long frames = 0;
 
-const float scale = 6.0f;
+const float scale = 5.0f;
 const int width = (int) (1000 / 6.0f);
 const int height = (int) (720 / 6.0f);
 

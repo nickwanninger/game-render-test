@@ -9,8 +9,8 @@ handleinput(player_t* player) {
 	double xm = player->vel.x;
 	double ym = player->vel.y;
 	// Rotation
-	if(key[SDL_SCANCODE_LEFT]) player->rota -= 0.025f;
-	if(key[SDL_SCANCODE_RIGHT]) player->rota += 0.025f;
+	if(key[SDL_SCANCODE_LEFT]) player->rota -= 0.02f;
+	if(key[SDL_SCANCODE_RIGHT]) player->rota += 0.02f;
 
 	if(key[SDL_SCANCODE_W]) ym--;
 	if(key[SDL_SCANCODE_S]) ym++;
