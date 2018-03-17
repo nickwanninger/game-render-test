@@ -16,11 +16,13 @@
 long ticks = 0;
 long frames = 0;
 
-const float scale = 5.0f;
+const float scale = 6.0f;
 const int width = (int) (1000 / 6.0f);
 const int height = (int) (720 / 6.0f);
 
+// extern graphic_t textures;
 
+	
 const char* map[] = {
 	"11111",
 	"10001",
@@ -51,8 +53,8 @@ static int done() {
 
 int
 main(int argc, char** argv) {
-
-	graphic_t textures = gopen("assets/textures.bmp");
+	// Initialize the graphics
+	ginit();
 
 	player_t player = {
 		{1, 1, 0}, // Position
@@ -66,7 +68,7 @@ main(int argc, char** argv) {
 	context_t context = init();
 	while(!done()) {
 		handleinput(&player);
-		render(context, &player, textures);
+		render(context, &player);
 	}
 	return 0;
 }

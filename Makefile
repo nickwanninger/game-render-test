@@ -1,7 +1,7 @@
 CC = clang
 WARNINGS = -Wall -Wformat
-CFLAGS = -std=c99 -I./include
-LDLIBS = -lSDL2 -lm -g
+CFLAGS = -std=c99 -I./include -O3
+LDLIBS = -lSDL2 -lm
 version = 0.0.1
 
 objs = $(srcs:.c=.o)

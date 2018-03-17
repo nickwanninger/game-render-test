@@ -1,13 +1,32 @@
 #include "render.h"
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
+#include <math.h>
 
 extern long frames;
 extern long ticks;
+extern int width;
+extern int height;
 
+
+graphic_t textures;
+graphic_t font_tex;
+
+
+void
+ginit(void) {
+	textures = gopen("assets/textures.bmp");
+
+	font_tex = gopen("assets/font.bmp");
+}
 
 unsigned
 getcolor(unsigned char r, unsigned char g, unsigned char b) {
 	return r << 16 | g << 8 | b;
 }
+
+
 
 unsigned
 colormul(unsigned c, float m) {
@@ -20,14 +39,17 @@ colormul(unsigned c, float m) {
 	return getcolor(r, g, b);
 }
 
+
+
+
 void
-render(context_t context, player_t* player, graphic_t texture) {
+render(context_t context, player_t* player) {
 	// Get the time that this render started.
 	int t0 = SDL_GetTicks();
 
 
 	display_t display = lock(context);
-	
+
 	int height = context.h;
 	int width = context.w;
 
@@ -40,7 +62,6 @@ render(context_t context, player_t* player, graphic_t texture) {
 	double zCam = 0;
 
 	int fov = height;
-	
 
 	int y = 0;
 	int x = 0;
@@ -53,7 +74,7 @@ render(context_t context, player_t* player, graphic_t texture) {
 		if (yd < 0) {
 			zd = (4 - zCam * 8) / -yd;
 		}
-		
+
 		for (x = 0; x < width; x++) {
 			double xd = (x - width / 2.0) / height;
 			xd *= zd;
@@ -71,7 +92,7 @@ render(context_t context, player_t* player, graphic_t texture) {
 			if (y > yCenter) texRow += 16;
 			zBuffer[x + y * display.width] = zd;
 
-			unsigned color = gpixel(&texture, texRow + (xPix & 15), texCol + (yPix & 15));
+			unsigned color = gpixel(&textures, texRow + (xPix & 15), texCol + (yPix & 15));
 			display.pixels[x + y * width] = color;
 		}
 	}
@@ -95,6 +116,14 @@ render(context_t context, player_t* player, graphic_t texture) {
 		display.pixels[i] = r << 16 | g << 8 | b;
 	}
 
+	for (int x = 0; x < font_tex.width; x++) {
+		for (int y = 0; y < font_tex.height; y++) {
+			setpixel(display, x, y, gpixel(&font_tex, x, y));
+		}
+	}
+
+	// gprintf(display, 1, 1, "0x%x", frames);
+
 	// Increment the frame count
 	frames++;
 	// display_t the context
@@ -108,14 +137,67 @@ render(context_t context, player_t* player, graphic_t texture) {
 }
 
 
+/** gprintf
+ * takes a <d>isplay, and <x> and a <y> and prints
+ * a formatted string to the screen starting at that
+ * location.
+ *
+ * The string starts where the top left of the string
+ * is at (<x>, <y>)
+ */
+#define FONT_CHAR_W 7
+#define FONT_CHAR_H 8
 void
-setpixel(display_t d, int x, int y, unsigned color) {
-	d.pixels[x + y * d.width] = color;
+gprintf(display_t d, int x, int y, const char* format, ...) {
+	int i = 0;
+
+	char buffer[255];
+	va_list args;
+
+
+	va_start(args, format);
+	int r = vsnprintf(buffer, 255, format, args);
+	buffer[r] = 0;
+	va_end(args);
+	// printf("%s\n", buffer);
+
+	for (i = 0; i < strlen(buffer); i++) {
+		gdrawchar(d, x + (i * FONT_CHAR_W), y, buffer[i]);
+	}
+}
+
+/** gdrawchar
+ * Takes a <d>isplay, <x> and <y> and draws the char <c>
+ * to that display
+ */
+void
+gdrawchar(display_t d, int x, int y, char c) {
+	// printf("%c\n", c);
+	// return;
+	int ix = c - 32;
+	int offset = ix * FONT_CHAR_W;
+	if (ix >= 0 && ix < 94) {
+		for (int xo = 0; xo < FONT_CHAR_W; xo++) {
+			for (int yo = 0; yo < FONT_CHAR_H; yo++) {
+				unsigned pixel = gpixel(&textures, xo + offset, yo + 56);
+				setpixel(d, x + xo, y + yo, pixel);
+			}
+		}
+	}
 }
 
 
 
-display_t lock(context_t context) {
+void
+setpixel(display_t d, int x, int y, unsigned color) {
+	if (x < d.width && y < height)
+		d.pixels[x + y * d.width] = color;
+}
+
+
+
+display_t
+lock(context_t context) {
 	void* screen;
 	int pitch;
 	SDL_LockTexture(context.texture, NULL, &screen, &pitch);

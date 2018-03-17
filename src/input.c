@@ -1,6 +1,7 @@
 #include "input.h"
 #include "player.h"
 #include <SDL2/SDL.h>
+#include <math.h>
 
 void
 handleinput(player_t* player) {

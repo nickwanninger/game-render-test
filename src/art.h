@@ -5,6 +5,7 @@
 typedef struct {
 	uint32_t* pixels;
 	int width;
+	int height;
 } display_t;
 
 typedef struct {

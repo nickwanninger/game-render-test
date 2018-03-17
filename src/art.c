@@ -1,6 +1,9 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include "art.h"
+
+extern graphic_t textures;
 
 graphic_t
 gopen(char* filename) {
@@ -43,3 +46,43 @@ gpixel(graphic_t* gr, unsigned x, unsigned y) {
 	unsigned char b = gr->pixels[3 * (x * gr->width + y) + 2];
 	return r << 16 | g << 8 | b;
 }
+
+// graphic_t
+// gopen(char* filename) {
+// 	int i;
+// 	// unsigned char tmp;
+// 	FILE* fp = fopen(filename, "rb");
+// 	graphic_t g = {NULL, 64, 64};
+	
+// 	unsigned char* info = malloc(54);
+// 	fread(info, sizeof(unsigned char), 54, fp);
+// 	g.width = *(int*)&info[18];
+// 	g.height = *(int*)&info[22];
+
+// 	int size = g.width * g.height;
+
+// 	g.pixels = calloc(4, size);
+// 	if (g.pixels == NULL) {
+// 		printf("is");
+// 	}
+
+// 	char cr = 0;
+// 	char cg = 0;
+// 	char cb = 0;
+
+// 	for (i = 0; i < size; i++) {
+// 		fread(&cb, 1, 1, fp);
+// 		fread(&cg, 1, 1, fp);
+// 		fread(&cr, 1, 1, fp);
+// 		g.pixels[i] = cr << 16 | cg << 8 | cb;
+// 	}
+// 	free(info);
+// 	fclose(fp);
+// 	return g;
+// }
+
+
+// uint32_t
+// gpixel(graphic_t* gr, unsigned x, unsigned y) {
+// 	return gr->pixels[y + x * gr->width];
+// }
