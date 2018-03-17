@@ -1,11 +1,18 @@
 #include "input.h"
+#include "level.h"
 #include "player.h"
 #include <SDL2/SDL.h>
 #include <math.h>
 
 void
-handleinput(player_t* player) {
+handleinput(player_t* player, level_t* level) {
 	const uint8_t* key = SDL_GetKeyboardState(NULL);
+
+	int tx = floor(player->pos.x);
+	int ty = floor(player->pos.y);
+
+
+	uint32_t onblock = getblock(*level, tx, ty);
 
 	double xm = player->vel.x;
 	double ym = player->vel.y;
@@ -18,9 +25,11 @@ handleinput(player_t* player) {
 	if(key[SDL_SCANCODE_D]) xm--;
 	if(key[SDL_SCANCODE_A]) xm++;
 
-	player->bob *= 0.6;
-	player->bob += sqrt(xm * xm + ym * ym);
-	player->bobPhase += sqrt(xm * xm + ym * ym);
+	if (key[SDL_SCANCODE_SPACE]) player->pos.z += 0.01f;
+	if (key[SDL_SCANCODE_LSHIFT]) player->pos.z -= 0.01f;
+
+
+
 
 	double dd = xm
 	 * xm + ym * ym;
@@ -29,9 +38,26 @@ handleinput(player_t* player) {
 	xm /= dd;
 	ym /= dd;
 
+	player->bob *= 0.6;
+	player->bob += sqrt(xm * xm + ym * ym);
+	player->bobPhase += sqrt(xm * xm + ym * ym);
+
 	player->acc.x -= (xm * cos(player->rot) + ym * sin(player->rot)) * player->walkSpeed;
 	player->acc.y -= (ym * cos(player->rot) - xm * sin(player->rot)) * player->walkSpeed;
 
+
+	int newtx = floor(player->pos.x + player->acc.x);
+	int newty = floor(player->pos.y + player->acc.y);
+
+	uint32_t xb = getblock(*level, newtx, ty);
+	uint32_t yb = getblock(*level, tx, newty);
+
+	if (xb != 0 && xb != 0xff0000) {
+		player->acc.x = 0;
+	}
+	if (yb != 0 && yb != 0xff0000) {
+		player->acc.y = 0;
+	}
 	// Move the player here.
 	player->pos.x += player->acc.x;
 	player->pos.y += player->acc.y;
@@ -41,4 +67,8 @@ handleinput(player_t* player) {
 	player->acc.y *= 0.8;
 	player->rot += player->rota;
 	player->rota *= 0.7;
+
+	// int rotsign = sign(player->rot);
+	// if (player->rot > M_PI * 2) player->rot = 0;
+	// if (player->rot < 0) player->rot += M_PI * 2;
 }

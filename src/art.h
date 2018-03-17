@@ -15,7 +15,7 @@ typedef struct {
 } graphic_t;
 
 
-graphic_t gopen(char* filename);
-unsigned gpixel(graphic_t* g, unsigned x, unsigned y);
+graphic_t* gopen(char* filename);
+unsigned gpixel(graphic_t* g, int x, int y);
 
 #endif

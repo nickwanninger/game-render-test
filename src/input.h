@@ -2,7 +2,8 @@
 #define __INPUT_DEF__
 
 #include "player.h"
+#include "level.h"
 
-void handleinput(player_t* player);
+void handleinput(player_t* player, level_t* level);
 
 #endif

@@ -4,6 +4,7 @@
 
 #include <stdint.h>
 
+#include "level.h"
 #include "context.h"
 #include "player.h"
 #include "point.h"
@@ -16,13 +17,11 @@
 long ticks = 0;
 long frames = 0;
 
-const float scale = 6.0f;
-const int width = (int) (1000 / 6.0f);
-const int height = (int) (720 / 6.0f);
+const float scale = 2.0f;
+const int width = (int) (1280 / 2.0);
+const int height = (int) (900 / 2.0);
 
-// extern graphic_t textures;
 
-	
 const char* map[] = {
 	"11111",
 	"10001",
@@ -37,7 +36,7 @@ init(void) {
 	SDL_Init(SDL_INIT_VIDEO);
 	SDL_Window* window = SDL_CreateWindow("render thing", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, (int) (width * scale), (int) (height * scale), SDL_WINDOW_SHOWN);
 	// SDL_SetWindowFullscreen(window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED );
+	SDL_Renderer* renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
 	SDL_Texture* texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
 	context_t ctx = {window, renderer, texture, width, height, scale};
 	return ctx;
@@ -56,19 +55,21 @@ main(int argc, char** argv) {
 	// Initialize the graphics
 	ginit();
 
+	level_t level = lopen("assets/level.bmp");
+
 	player_t player = {
-		{1, 1, 0}, // Position
+		{level.pspawn.x, level.pspawn.y, 0}, // Position
 		{0, 0}, // Velocity
 		{0, 0}, // Acceleration
 		0.0f, // Rotation
 		0.0f, // Rotation Acceleration
-		0.1, // Walk Speed
+		0.1 / 6.0, // Walk Speed
 	};
 
 	context_t context = init();
 	while(!done()) {
-		handleinput(&player);
-		render(context, &player);
+		handleinput(&player, &level);
+		render(context, &player, level);
 	}
 	return 0;
 }
