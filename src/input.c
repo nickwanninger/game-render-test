@@ -11,6 +11,8 @@ handleinput(player_t* player, level_t* level) {
 	int tx = floor(player->pos.x);
 	int ty = floor(player->pos.y);
 
+	double movespeed = player->walkSpeed;
+
 
 	uint32_t onblock = getblock(*level, tx, ty);
 
@@ -25,8 +27,7 @@ handleinput(player_t* player, level_t* level) {
 	if(key[SDL_SCANCODE_D]) xm--;
 	if(key[SDL_SCANCODE_A]) xm++;
 
-	if (key[SDL_SCANCODE_SPACE]) player->pos.z += 0.01f;
-	if (key[SDL_SCANCODE_LSHIFT]) player->pos.z -= 0.01f;
+	if (key[SDL_SCANCODE_LSHIFT]) movespeed *= 2;
 
 
 
@@ -42,15 +43,19 @@ handleinput(player_t* player, level_t* level) {
 	player->bob += sqrt(xm * xm + ym * ym);
 	player->bobPhase += sqrt(xm * xm + ym * ym);
 
-	player->acc.x -= (xm * cos(player->rot) + ym * sin(player->rot)) * player->walkSpeed;
-	player->acc.y -= (ym * cos(player->rot) - xm * sin(player->rot)) * player->walkSpeed;
+	player->acc.x -= (xm * cos(player->rot) + ym * sin(player->rot)) * movespeed;
+	player->acc.y -= (ym * cos(player->rot) - xm * sin(player->rot)) * movespeed;
 
-
-	int newtx = floor(player->pos.x + player->acc.x);
-	int newty = floor(player->pos.y + player->acc.y);
+	double r = 0.1;
+	int xs = (player->acc.x > 0) - (player->acc.x < 0);
+	int ys = (player->acc.y > 0) - (player->acc.y < 0);
+	int newtx = floor(player->pos.x + player->acc.x + r * xs);
+	int newty = floor(player->pos.y + player->acc.y + r * ys);
 
 	uint32_t xb = getblock(*level, newtx, ty);
 	uint32_t yb = getblock(*level, tx, newty);
+
+	
 
 	if (xb != 0 && xb != 0xff0000) {
 		player->acc.x = 0;

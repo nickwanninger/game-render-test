@@ -9,6 +9,7 @@ extern long frames;
 extern long ticks;
 extern int width;
 extern int height;
+extern float scale;
 
 
 graphic_t *textures = NULL;
@@ -18,8 +19,6 @@ int currentms = 0;
 int framesthissecond = 0;
 int fps = 0;
 
-
-float focaldepth = 24;
 
 
 void
@@ -81,9 +80,7 @@ render(context_t context, player_t* player, level_t level) {
 	unsigned zBuffer[width * height];
 	int zBufferWall[width];
 	for (int i = 0; i < width; i++) zBufferWall[i] = 0;
-	int depthBuffer[width * height];
-	for (int i = 0; i < width * height; i++) depthBuffer[i] = 0;
-	
+
 
 	double rCos = cos(player->rot);
 	double rSin = sin(player->rot);
@@ -134,7 +131,7 @@ render(context_t context, player_t* player, level_t level) {
 
 	int xb = 0;
 	int yb = 0;
-	int r = 6;
+	int r = 15;
 	int wallcount = 0;
 
 	int xCenter = (int)floor(xCam);
@@ -168,38 +165,61 @@ render(context_t context, player_t* player, level_t level) {
 		}
 	}
 
+	double focaldepth = zBuffer[(width / 2) + (height / 2) * width];
 
-	int targetfocaldepth = zBuffer[(width / 2) + (height / 2) * width];
-
-	focaldepth = lerp(focaldepth, targetfocaldepth, 0.1);
-
-
-	for (x = 0; x < width; x++) {
-		for (y = 0; y < height; y++) {
-			depthBuffer[x + y * width] = fabs((int)zBuffer[x + y * width] - focaldepth);
-		}
+	for (int i = 0; i < width * height; i++) {
+		int xp = (i % width);
+		int yp = (i / width) * 14;
+		double zl = zBuffer[i];
+		double xx = ((i % width - width / 2.0) / width);
+		int col = display.pixels[i];
+		int brightness = (int) (600 - zl * 6 * (xx * xx * 2 + 1));
+		brightness = (brightness + ((xp + yp) & 3) * 4) >> 4 << 4;
+		if (brightness < 0) brightness = 0;
+		if (brightness > 255) brightness = 255;
+		int r = (col >> 16) & 0xff;
+		int g = (col >> 8) & 0xff;
+		int b = (col) & 0xff;
+		r = r * brightness / 255;
+		g = g * brightness / 255;
+		b = b * brightness / 255;
+		display.pixels[i] = r << 16 | g << 8 | b;
 	}
 
-	// for (int i = 0; i < width * height; i++) {
-	// 	int xp = (i % width);
-	// 	int yp = (i / width) * 14;
-	// 	double zl = zBuffer[i];
-	// 	double xx = ((i % width - width / 2.0) / width);
-	// 	int col = display.pixels[i];
-	// 	int brightness = (int) (255 - zl * 6 * (xx * xx * 2 + 1));
-	// 	brightness = (brightness + ((xp + yp) & 3) * 4) >> 4 << 4;
-	// 	if (brightness < 0) brightness = 0;
-	// 	if (brightness > 255) brightness = 255;
-	// 	int r = (col >> 16) & 0xff;
-	// 	int g = (col >> 8) & 0xff;
-	// 	int b = (col) & 0xff;
-	// 	r = r * brightness / 255;
-	// 	g = g * brightness / 255;
-	// 	b = b * brightness / 255;
-	// 	display.pixels[i] = r << 16 | g << 8 | b;
-	// }
 
 
+// public void scaleDraw(Bitmap bitmap, int scale, int xOffs, int yOffs, int xo, int yo, int w, int h, int col) {
+// 	for (int y = 0; y < h * scale; y++) {
+// 		int yPix = y + yOffs;
+// 		if (yPix < 0 || yPix >= height) continue;
+
+// 		for (int x = 0; x < w * scale; x++) {
+// 			int xPix = x + xOffs;
+// 			if (xPix < 0 || xPix >= width) continue;
+
+// 			int src = bitmap.pixels[(x / scale + xo) + (y / scale + yo) * bitmap.width];
+// 			if (src >= 0) {
+// 				pixels[xPix + yPix * width] = src * col;
+// 			}
+// 		}
+// 	}
+// }
+
+	int tx = 0;
+	int ty = 0;
+	int s = 3;
+	int handx = 0;//width;
+	int handy = sin(frames / 40.0) * 4;// height - (32 * scale);
+	for (x = 0; x < 16 * s; x++) {
+		int xPix = x + handx;
+		for (y = 0; y < 16 * s; y++) {
+			int yPix = y + handy;
+			unsigned color = gpixel(textures, tx + (x/s), ty + (y/s));
+			if (color == 0xff00ff) continue;
+			setpixel(display, xPix, yPix, color);
+		}
+	}
+	
 	// int s = 6;
 	// for (x = 0; x < level.width; x++) {
 	// 	for (y = 0; y < level.height; y++) {
@@ -222,14 +242,14 @@ render(context_t context, player_t* player, level_t level) {
 	// setpixel(display, player->pos.x * s + (width - level.width * s), player->pos.y * s + (height - level.height * s), 0x00ff00);
 
 	// Draw Depth Buffer.
-	for (int i = 0; i < width * height; i++) {
-		int cr = display.pixels[i];
-		int d = 255 - depthBuffer[i] * 4;
-		if (d < 0) d = 0;
-		if (d > 255) d = 255;
-		uint32_t dc = getcolor(d, d, d);
-		display.pixels[i] = lerpcolor(dc, cr, 0);
-	}
+	// for (int i = 0; i < width * height; i++) {
+	// 	int cr = display.pixels[i];
+	// 	int d = 255 - depthBuffer[i] * 4;
+	// 	if (d < 0) d = 0;
+	// 	if (d > 255) d = 255;
+	// 	uint32_t dc = getcolor(d, d, d);
+	// 	display.pixels[i] = lerpcolor(dc, cr, 0);
+	// }
 
 
 	// Draw crosshair
@@ -237,7 +257,7 @@ render(context_t context, player_t* player, level_t level) {
 	for (int i = 0; i < 5; i++) setpixel(display, width / 2 - 2 + i, (height / 2), 0xffffff);
 
 	gprintf(display, 2, 2,  "fps:   %d", fps);
-	gprintf(display, 2, 12, "fd:    %d", focaldepth);
+	gprintf(display, 2, 12, "fd:    %f", focaldepth);
 	gprintf(display, 2, 23, "walls: %d", wallcount);
 
 	// Increment the frame count
