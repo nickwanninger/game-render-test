@@ -19,6 +19,9 @@ int framesthissecond = 0;
 int fps = 0;
 
 
+float focaldepth = 24;
+
+
 void
 ginit(void) {
 	font_tex = gopen("assets/font.bmp");
@@ -30,7 +33,7 @@ getcolor(unsigned char r, unsigned char g, unsigned char b) {
 	return r << 16 | g << 8 | b;
 }
 
-int
+float
 lerp(int v1, int v2, float alpha) {
 	return (int) (v1 + alpha * (v2 - v1));
 }
@@ -43,9 +46,9 @@ lerpcolor(unsigned c1, unsigned c2, double alpha) {
 	int r2 = (c2 >> 16) & 0xff;
 	int g2 = (c2 >> 8) & 0xff;
 	int b2 = (c2) & 0xff;
-	int r = lerp(r1, r2, alpha);
-	int g = lerp(g1, g2, alpha);
-	int b = lerp(b1, b2, alpha);
+	int r = (int) lerp(r1, r2, alpha);
+	int g = (int) lerp(g1, g2, alpha);
+	int b = (int) lerp(b1, b2, alpha);
 	return r << 16 | g << 8 | b;
 }
 
@@ -70,7 +73,6 @@ render(context_t context, player_t* player, level_t level) {
 	// Get the time that this render started.
 	int t0 = SDL_GetTicks();
 
-
 	display_t display = lock(context);
 
 	int height = context.h;
@@ -79,13 +81,16 @@ render(context_t context, player_t* player, level_t level) {
 	unsigned zBuffer[width * height];
 	int zBufferWall[width];
 	for (int i = 0; i < width; i++) zBufferWall[i] = 0;
+	int depthBuffer[width * height];
+	for (int i = 0; i < width * height; i++) depthBuffer[i] = 0;
+	
 
 	double rCos = cos(player->rot);
 	double rSin = sin(player->rot);
 	double xCam = player->pos.x - 0.5;
 	double yCam = player->pos.y - 0.5;
 
-	player->pos.z = sin(player->bobPhase * 0.4) * 0.01 * player->bob;
+	player->pos.z = 0.1 + sin(player->bobPhase * 0.4) * 0.01 * player->bob;
 	double zCam = player->pos.z;
 
 	int fov = height;
@@ -114,7 +119,7 @@ render(context_t context, player_t* player, level_t level) {
 			if (xx < 0) xPix--;
 			if (yy < 0) yPix--;
 
-			int texRow = 32;
+			int texRow = 16;
 			int texCol = 0;
 
 			zBuffer[x + y * display.width] = zd;
@@ -129,8 +134,7 @@ render(context_t context, player_t* player, level_t level) {
 
 	int xb = 0;
 	int yb = 0;
-	int r = 20;
-
+	int r = 6;
 	int wallcount = 0;
 
 	int xCenter = (int)floor(xCam);
@@ -139,7 +143,6 @@ render(context_t context, player_t* player, level_t level) {
 		for (yb = zCenter - r; yb <= zCenter + r; yb++) {
 			// setpixel(display, xb, yb, 0xff00ff);
 			uint32_t c = getblock(level, xb, -yb);
-
 			if (c != 0x000000 && c != 0xff0000) {
 				// North
 				if (getblock(level, xb - 1, -yb) == 0) {
@@ -161,8 +164,19 @@ render(context_t context, player_t* player, level_t level) {
 					wallcount++;
 					renderwall(&display, zBuffer, zBufferWall, player, xb, yb + 1, xb + 1, yb + 1, c);
 				}
-
 			}
+		}
+	}
+
+
+	int targetfocaldepth = zBuffer[(width / 2) + (height / 2) * width];
+
+	focaldepth = lerp(focaldepth, targetfocaldepth, 0.1);
+
+
+	for (x = 0; x < width; x++) {
+		for (y = 0; y < height; y++) {
+			depthBuffer[x + y * width] = fabs((int)zBuffer[x + y * width] - focaldepth);
 		}
 	}
 
@@ -172,7 +186,7 @@ render(context_t context, player_t* player, level_t level) {
 	// 	double zl = zBuffer[i];
 	// 	double xx = ((i % width - width / 2.0) / width);
 	// 	int col = display.pixels[i];
-	// 	int brightness = (int) (700 - zl * 6 * (xx * xx * 2 + 1));
+	// 	int brightness = (int) (255 - zl * 6 * (xx * xx * 2 + 1));
 	// 	brightness = (brightness + ((xp + yp) & 3) * 4) >> 4 << 4;
 	// 	if (brightness < 0) brightness = 0;
 	// 	if (brightness > 255) brightness = 255;
@@ -186,19 +200,17 @@ render(context_t context, player_t* player, level_t level) {
 	// }
 
 
-	int s = 6;
-	for (x = 0; x < level.width; x++) {
-		for (y = 0; y < level.height; y++) {
-			uint32_t c = getblock(level, x, y);
-			for (int tx = 0; tx < s; tx++) {
-				for (int ty = 0; ty < s; ty++) {
-					setpixel(display, (x * s) + tx + (width - level.width * s), (y * s) + ty + (height - level.height * s), c);
-				}
-			}
-		}
-	}
-
-
+	// int s = 6;
+	// for (x = 0; x < level.width; x++) {
+	// 	for (y = 0; y < level.height; y++) {
+	// 		uint32_t c = getblock(level, x, y);
+	// 		for (int tx = 0; tx < s; tx++) {
+	// 			for (int ty = 0; ty < s; ty++) {
+	// 				setpixel(display, (x * s) + tx + (width - level.width * s), (y * s) + ty + (height - level.height * s), c);
+	// 			}
+	// 		}
+	// 	}
+	// }
 	// int tx = floor(player->pos.x);
 	// int ty = floor(player->pos.y);
 	// int c = getblock(level, tx, ty);
@@ -212,13 +224,21 @@ render(context_t context, player_t* player, level_t level) {
 	// Draw Depth Buffer.
 	for (int i = 0; i < width * height; i++) {
 		int cr = display.pixels[i];
-		int d = 255 - (zBuffer[i] * 2);
+		int d = 255 - depthBuffer[i] * 4;
 		if (d < 0) d = 0;
+		if (d > 255) d = 255;
 		uint32_t dc = getcolor(d, d, d);
-		setpixel(display, x, y, lerpcolor(dc, cr, 0.2));
+		display.pixels[i] = lerpcolor(dc, cr, 0);
 	}
 
-	gprintf(display, 2, 2, "%dfps, %u", fps, zBuffer[(width / 2) + (height / 2) * width]);
+
+	// Draw crosshair
+	for (int i = 0; i < 5; i++) setpixel(display, (width / 2), height / 2 - 2 + i, 0xffffff);
+	for (int i = 0; i < 5; i++) setpixel(display, width / 2 - 2 + i, (height / 2), 0xffffff);
+
+	gprintf(display, 2, 2,  "fps:   %d", fps);
+	gprintf(display, 2, 12, "fd:    %d", focaldepth);
+	gprintf(display, 2, 23, "walls: %d", wallcount);
 
 	// Increment the frame count
 	frames++;
@@ -276,7 +296,8 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 	xt0 *= 16;
 	xt1 *= 16;
 
-	int tex = 2;
+	int tex = 0;
+	int col = 0;
 
 	double zClip = 0.1;
 
@@ -348,8 +369,8 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 		for (int y = yp0; y < yp1; y++) {
 			double pry = (y - yPixel0) * ih;
 			int yTex = (int) (16 * pry);
-			int xt = (xTex) + (tex % 8) * 16;
-			int yt = (yTex + tex / 8 * 16);
+			int xt = yTex + (tex % 8) * 16;
+			int yt = xTex + (col / 8) * 16;
 			int color = gpixel(textures, xt, yt);
 			d->pixels[x + y * width] = lerpcolor(color, c, 0.5);//Art.walls.pixels[( +  * 128] * color;
 			zbuffer[x + y * width] = 1 / iz * 4;

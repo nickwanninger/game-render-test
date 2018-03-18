@@ -17,9 +17,9 @@
 long ticks = 0;
 long frames = 0;
 
-const float scale = 2.0f;
-const int width = (int) (1280 / 2.0);
-const int height = (int) (900 / 2.0);
+const float scale = 4.0f;
+const int width = (int) (1400 / 6.0);
+const int height = (int) (900 / 6.0);
 
 
 const char* map[] = {

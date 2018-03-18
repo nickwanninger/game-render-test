@@ -19,6 +19,6 @@ void present(context_t context);
 
 
 unsigned getcolor(unsigned char r, unsigned char g, unsigned char b);
-int lerp(int v1, int v2, float alpha);
+float lerp(int v1, int v2, float alpha);
 
 #endif
