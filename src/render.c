@@ -6,8 +6,12 @@
 #include <math.h>
 #include <pthread.h>
 
+#define __RENDER_WALLS__
 #define __RENDER_POSTPROCESS__
+#define __RENDER_DEBUG_INFO__
+#define __RENDER_CROSSHAIR__
 
+#define RENDER_DISTANCE 15
 #define PI 3.141592653589793238462643383279502
 
 #define NORTH 0
@@ -100,7 +104,7 @@ render(context_t context, player_t* player, level_t level) {
 	player->pos.z = 0.1 + sin(player->bobPhase * 0.4) * 0.01 * player->bob;
 	double zCam = player->pos.z;
 
-	int dir = (int) ((2 * player->rot) / PI + 1.5) % 4;
+	int dir = (int) ((2 * player->rot) / PI + 4.5) % 4;
 
 	int fov = height;
 
@@ -122,7 +126,6 @@ render(context_t context, player_t* player, level_t level) {
 
 			double xx = xd * rCos + zd * rSin + (xCam + 0.5) * 8;
 			double yy = zd * rCos - xd * rSin + (yCam + 0.5) * 8;
-			// printf("1\n");
 			int xPix = (int) (xx * 2);
 			int yPix = (int) (yy * 2);
 			if (xx < 0) xPix--;
@@ -131,57 +134,66 @@ render(context_t context, player_t* player, level_t level) {
 			int texRow = 16;
 			int texCol = 0;
 
+			int tilex = xx / 8;
+			int tiley = yy / 8;
+
 			zBuffer[x + y * width] = zd;
 
-			unsigned color = color = gpixel(textures, texRow + (xPix & 15), texCol + (yPix & 15));
+			unsigned tile = getblock(level, xx / 8, yy / 8);
+			unsigned color = tile;
+			color = gpixel(textures, texRow + (xPix & 15), texCol + (yPix & 15));
+
+			if (tilex < 0 || tilex > level.width + 1) continue;
+			if (tiley < 0 || tiley > level.height + 1) continue;
+
+			// if (y < yCenter) color = 0;
 			display.pixels[x + y * width] = color;
 		}
 	}
 	
 	
 
+
+	
+	
+
+	
+	#ifdef __RENDER_WALLS__
 	int xb = 0;
 	int yb = 0;
-	int r = 16;
-	int wallcount = 0;
-
 	int xCenter = (int)floor(xCam);
 	int zCenter = -(int)floor(yCam);
-	
-	for (xb = xCenter - r; xb <= xCenter + r; xb++) {
-		for (yb = zCenter - r; yb <= zCenter + r; yb++) {
+	for (xb = xCenter - RENDER_DISTANCE; xb <= xCenter + RENDER_DISTANCE; xb++) {
+		for (yb = zCenter - RENDER_DISTANCE; yb <= zCenter + RENDER_DISTANCE; yb++) {
 			uint32_t c = getblock(level, xb, -yb);
 			
-			if (c != 0x000000 && c != 0xff0000) {
+			if (c == 0xffffff) {
 				
 				// North
-				if (dir != NORTH && getblock(level, xb - 1, -yb) == 0) {
-					wallcount++;
+				if (getblock(level, xb - 1, -yb) == 0) {
 					renderwall(&display, zBuffer, zBufferWall, player, xb, yb, xb, yb + 1, c);
 				}
 				// South
-				if (dir != SOUTH && getblock(level, xb + 1, -yb) == 0) {
-					wallcount++;
+				if (getblock(level, xb + 1, -yb) == 0) {
 					renderwall(&display, zBuffer, zBufferWall, player, xb + 1, yb + 1, xb + 1, yb, c);
 				}
 				// East
-				if (dir != EAST && getblock(level, xb, -yb + 1) == 0) {
-					wallcount++;
+				if (getblock(level, xb, -yb + 1) == 0) {
 					renderwall(&display, zBuffer, zBufferWall, player, xb + 1, yb, xb, yb, c);
 				}
 				// West
-				if (dir != WEST && getblock(level, xb, -yb - 1) == 0) {
-					wallcount++;
+				if (getblock(level, xb, -yb - 1) == 0) {
 					renderwall(&display, zBuffer, zBufferWall, player, xb, yb + 1, xb + 1, yb + 1, c);
 				}
 			}
 		}
 	}
+	#endif
 
 	
 
 	#ifdef __RENDER_POSTPROCESS__
-	int fogdist = 30 * 7;
+	int fogdist = 40 * 7;
 	int ditherfactor = 9;
 	for (int i = 0; i < width * height; i++) {
 		int xp = (i % width);
@@ -209,7 +221,7 @@ render(context_t context, player_t* player, level_t level) {
 	int tcol = 32;
 	int trow = 16;
 	int texsize = 16;
-	int s = 4;
+	int s = 8;
 	double scalesqrt = sqrt(s);
 	int xx = (int) (-player->turnBob * 32) * scalesqrt;
 	int yy = (int) (sin(player->bobPhase * 0.4) * 1 * player->bob + player->bob * 2) * scalesqrt;
@@ -227,13 +239,17 @@ render(context_t context, player_t* player, level_t level) {
 		}
 	}
 
+	#ifdef __RENDER_CROSSHAIR__
 	// Draw crosshair
 	for (int i = 0; i < 5; i++) setpixel(display, (width / 2), height / 2 - 2 + i, 0xffffff);
 	for (int i = 0; i < 5; i++) setpixel(display, width / 2 - 2 + i, (height / 2), 0xffffff);
+	#endif
 
-	gprintf(display, 2, 2,  "%f", player->rot);
-	gprintf(display, 2, 11, "Dir: %s", directions[dir]);
-	gprintf(display, 2, 19, "Walls: %d", wallcount);
+	#ifdef __RENDER_DEBUG_INFO__
+	gprintf(display, 3,  8, "Dir: %s", directions[dir]);
+	gprintf(display, 3, 16, "       x   y");
+	gprintf(display, 3, 26, "Tile: %2d, %2d", (int)floor(player->pos.x), (int)floor(player->pos.y));
+	#endif /* __RENDER_DEBUG_INFO__ */
 
 
 	unlock(context);
@@ -242,7 +258,7 @@ render(context_t context, player_t* player, level_t level) {
 
 
 
-
+#ifdef __RENDER_WALLS__
 static inline void
 renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, double x0, double y0, double x1, double y1, uint32_t c) {
 	
@@ -357,7 +373,7 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 		}
 	}
 }
-
+#endif /* __RENDER_WALLS__*/
 
 
 

@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <SDL2/SDL.h>
 #include <math.h>
-
+#include <getopt.h>
 #include <stdint.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -16,6 +16,10 @@
 #include "input.h"
 
 
+#define MODE_PLAY 0
+#define MODE_EDIT 1
+
+
 // #define __SINGLE_THREADED__
 
 
@@ -23,9 +27,12 @@ long ticks = 0;
 long frames = 0;
 int fps = 0;
 
-const float scale = 4;
-const int width = 190;
-const int height = 120;
+// const float scale = 4;
+// const int width = 280;
+// const int height = 190;
+const float scale = 3;
+const int width = 350;
+const int height = 260;
 
 int microsecondsinsecond = 1000000;
 float microsecondsintick = 1000000 / 60.0;
@@ -99,13 +106,12 @@ renderThreadLoop(void *arg) {
 	return 0;
 }
 
-int
-main(int argc, char** argv) {
+
+int playlevel(char* filename) {
 	// Initialize the graphics
 	ginit();
-
 	// Read the level data from the bitmap.
-	level = lopen("assets/level.bmp");
+	level = lopen(filename);
 	player = (player_t) {
 		{level.pspawn.x, level.pspawn.y, 0}, // Position
 		{0, 0}, // Velocity
@@ -114,7 +120,6 @@ main(int argc, char** argv) {
 		0.0f, // Rotation Acceleration
 		0.1 / 3.5, // Walk Speed
 	};
-
 	context = init();
 
 	#ifndef __SINGLE_THREADED__
@@ -141,5 +146,61 @@ main(int argc, char** argv) {
 		
 	}
 	exit(1);
+}
+
+
+static struct option const long_options[] = {
+	{"edit", optional_argument, NULL, 'e'},
+	{NULL, 0, NULL, 0}
+};
+
+
+int
+main(int argc, char** argv) {
+
+	char* programname = argv[0];
+	int mode = MODE_PLAY;
+
+	// Start parsing some args
+	char c = 0;
+	while ((c = getopt_long(argc, argv, "e", long_options, NULL)) != -1) {
+		switch (c) {
+			case 'e': // verbose mode
+				printf("Edit Mode\n");
+				mode = MODE_EDIT;
+				break;
+		}
+	}
+
+	// If there arent any args left (the file name)
+	if (optind >= argc) {
+		printf("Usage: %s [OPTION]... <level file>\n", programname);
+		return EXIT_FAILURE;
+	}
+	
+	char* filename = argv[optind++];
+
+	if (mode == MODE_PLAY) {
+		printf("Playing level file '%s'\n", filename);
+		playlevel(filename);
+	} else if (mode == MODE_EDIT) {
+		printf("Editing level file '%s'\n", filename);
+	}
+	
+	// // Run over each file in the arguments
+	// while (optind < argc) {
+		
+	// 	// Check for file read errors
+	// 	if (!(source->file = fopen(source->name, "r"))) {
+	// 		fclose(source->file);
+	// 		printf("File error: %s\n", strerror(errno));
+	// 		return EXIT_FAILURE;
+	// 	}
+
+	// 	parsefile(source);
+	// 	fclose(source->file);
+	// 	free(source);
+	// }
+
 	return 0;
 }
