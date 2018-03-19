@@ -12,6 +12,7 @@ typedef struct {
 	double walkSpeed;
 	double bobPhase;
 	double bob;
+	double turnBob;
 } player_t;
 
 

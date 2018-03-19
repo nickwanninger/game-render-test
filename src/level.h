@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 typedef struct {
-	uint32_t* tiles;
+	char* tiles;
 	int width;
 	int height;
 	point_t pspawn;

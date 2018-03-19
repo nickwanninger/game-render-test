@@ -17,10 +17,10 @@ gopen(char* filename) {
 	// extract image height and width from header
 	int width = *(int*)&info[18];
 	int height = *(int*)&info[22];
-	int bitsperpixel = 3 * 8;
+	// int bitsperpixel = 3 * 8;
 	int padding=0; while ((width*3+padding) % 4 !=0) padding++;
-	int rowsize = floor((bitsperpixel * width + 31) / 32) * 4;
-	printf("%s bpp: %d, padding: %d, rowsize: %d\n",filename, bitsperpixel, padding, rowsize);
+	// int rowsize = floor((bitsperpixel * width + 31) / 32) * 4;
+	// printf("%s bpp: %d, padding: %d, rowsize: %d\n",filename, bitsperpixel, padding, rowsize);
 
 	int size = 3 * width * height;
 	unsigned char* data = malloc(size); // allocate 3 bytes per pixel
