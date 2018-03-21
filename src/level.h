@@ -23,6 +23,6 @@ typedef struct {
 
 
 int getblock(level_t l, int x, int y);
-level_t lopen(char* filename);
+level_t* lopen(char* filename);
 
 #endif

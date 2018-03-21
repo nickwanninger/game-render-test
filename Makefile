@@ -1,8 +1,8 @@
 CC = clang
 WARNINGS = -Wall -Wformat
-CFLAGS = -std=c99 -I./include -O3
-LDLIBS = -lSDL2 -lm -lpthread
-version = 0.0.1
+CFLAGS =  -I./include
+LDLIBS = -lSDL2 -lm -lpthread -llua
+version = 0.0.4
 
 objs = $(srcs:.c=.o)
 exe = game
@@ -34,6 +34,14 @@ $(exe): $(OBJFILES)
 	@$(CC) $(WARNINGS) $(LDLIBS) -o $@ $(foreach i,$^,$(i) )
 	@echo "\x1B[93mCompiled     v$(version)\x1B[0m"
 
+cleanall:
+	rm $(exe)
+	rm -rf $(OBJDIR)
 clean:
-	$(Q)rm $(exe)
-	$(Q)rm -rf $(OBJDIR)
+	rm $(exe)
+	rm $(OBJDIR)/*.o
+	# rm -rf luajit/**/*.o
+
+
+# luajit/src/libluajit.a:
+# 	$(MAKE) -C luajit

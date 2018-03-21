@@ -1,9 +1,11 @@
 #ifndef __INPUT_DEF__
 #define __INPUT_DEF__
 
-#include "player.h"
+#include "camera.h"
 #include "level.h"
+#include "game.h"
 
-void handleinput(player_t* player, level_t* level);
+void inputEventWatcher(game_t* game);
+void handleinput(game_t* game);
 
 #endif

@@ -1,10 +1,16 @@
-#include "render.h"
-#include "level.h"
 #include <stdio.h>
 #include <stdarg.h>
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
+#include "context.h"
+#include "render.h"
+#include "level.h"
+#include "script.h"
+
+
+#include "profiler.h"
+
 
 #define __RENDER_WALLS__
 #define __RENDER_POSTPROCESS__
@@ -13,6 +19,9 @@
 
 #define RENDER_DISTANCE 15
 #define PI 3.141592653589793238462643383279502
+
+#define FONT_CHAR_W 6
+#define FONT_CHAR_H 7
 
 #define NORTH 0
 #define EAST  1
@@ -23,18 +32,12 @@ char* directions[] = {"North", "East", "South", "West"};
 
 
 
-extern long frames;
-extern long ticks;
-extern int width;
-extern int height;
-extern float scale;
-extern float pixelscale;
-
-extern int fps;
-
+unsigned textcolor = 0xffffff;
 
 graphic_t *textures = NULL;
 graphic_t *font_tex = NULL;
+
+display_t* globaldisplay;
 
 
 void
@@ -84,208 +87,337 @@ colormul(unsigned c, float m) {
 
 
 void
-render(context_t context, player_t* player, level_t level) {
+render(game_t* game) {
+	
+	profilerstartframe();
+
+	context_t context = *(game->context);
+	level_t level = *(game->level);
+	camera_t* camera = game->camera;
 	display_t display = lock(context);
-
-	int height = context.h;
-	int width = context.w;
+	globaldisplay = &display;
 	
 
-	unsigned zBuffer[width * height];
-	int zBufferWall[width];
-	for (int i = 0; i < width; i++) zBufferWall[i] = 0;
+	unsigned zBuffer[WIDTH * HEIGHT];
+	int zBufferWall[WIDTH];
+	for (int i = 0; i < WIDTH; i++) zBufferWall[i] = 0;
+
+	// for (int i = 0; i < WIDTH * HEIGHT; i++) display.pixels[i] = 0;
+	
 	
 
-	double rCos = cos(player->rot);
-	double rSin = sin(player->rot);
-	double xCam = player->pos.x - 0.5;
-	double yCam = player->pos.y - 0.5;
+	double rCos = cos(camera->rot);
+	double rSin = sin(camera->rot);
+	double xCam = camera->x - 0.5;
+	double yCam = camera->y - 0.5;
+	double zCam = camera->z;
 
-	player->pos.z = 0.1 + sin(player->bobPhase * 0.4) * 0.01 * player->bob;
-	double zCam = player->pos.z;
+	// int dir = (int) ((2 * camera->rot) / PI + 4.5) % 4;
 
-	int dir = (int) ((2 * player->rot) / PI + 4.5) % 4;
-
-	int fov = height;
+	int fov = HEIGHT;
 
 	int y = 0;
 	int x = 0;
 
-	double yCenter = height / 2;
+	
 
-	for (y = 0; y < height; y++) {
-		double yd = ((y + 0.5) - yCenter) / fov;
-		double zd = (4 + zCam * 8) / yd;
-		if (yd < 0) {
-			zd = (4 - zCam * 8) / -yd;
-		}
+	double yCenter = HEIGHT / 2;
 
-		for (x = 0; x < width; x++) {
-			double xd = (x - width / 2.0) / height;
-			xd *= zd;
+	if (game->drawfloor) {
+		for (y = 0; y < HEIGHT; y++) {
+			double yd = ((y + 0.5) - yCenter) / fov;
+			double zd = (4 + zCam * 8) / yd;
+			if (yd < 0) {
+				zd = (4 - zCam * 8) / -yd;
+			}
 
-			double xx = xd * rCos + zd * rSin + (xCam + 0.5) * 8;
-			double yy = zd * rCos - xd * rSin + (yCam + 0.5) * 8;
-			int xPix = (int) (xx * 2);
-			int yPix = (int) (yy * 2);
-			if (xx < 0) xPix--;
-			if (yy < 0) yPix--;
+			
 
-			int texRow = 16;
-			int texCol = 0;
+			for (x = 0; x < WIDTH; x++) {
+				double xd = (x - WIDTH / 2.0) / HEIGHT;
+				xd *= zd;
 
-			int tilex = xx / 8;
-			int tiley = yy / 8;
+				double xx = xd * rCos + zd * rSin + (xCam + 0.5) * 8;
+				double yy = zd * rCos - xd * rSin + (yCam + 0.5) * 8;
+				int xPix = (int) (xx * 2);
+				int yPix = (int) (yy * 2);
+				if (xx < 0) xPix--;
+				if (yy < 0) yPix--;
 
-			zBuffer[x + y * width] = zd;
+				int texRow = 16;
+				int texCol = 0;
 
-			unsigned tile = getblock(level, xx / 8, yy / 8);
-			unsigned color = tile;
-			color = gpixel(textures, texRow + (xPix & 15), texCol + (yPix & 15));
+				int tilex = xx / 8;
+				int tiley = yy / 8;
 
-			if (tilex < 0 || tilex > level.width + 1) continue;
-			if (tiley < 0 || tiley > level.height + 1) continue;
+				zBuffer[x + y * WIDTH] = zd;
 
-			// if (y < yCenter) color = 0;
-			display.pixels[x + y * width] = color;
+				unsigned tile = getblock(level, xx / 8, yy / 8);
+				unsigned color = tile;
+				
+				color = gpixel(textures, texRow + (xPix & 15), texCol + (yPix & 15));
+
+				if (tilex < 0 || tilex > level.width + 1) continue;
+				if (tiley < 0 || tiley > level.height + 1) continue;
+
+				// if (y < yCenter) color = 0;
+				display.pixels[x + y * WIDTH] = color;
+			}
 		}
 	}
-	
-	
 
-
-	
-	
-
-	
 	#ifdef __RENDER_WALLS__
-	int xb = 0;
-	int yb = 0;
-	int xCenter = (int)floor(xCam);
-	int zCenter = -(int)floor(yCam);
-	for (xb = xCenter - RENDER_DISTANCE; xb <= xCenter + RENDER_DISTANCE; xb++) {
-		for (yb = zCenter - RENDER_DISTANCE; yb <= zCenter + RENDER_DISTANCE; yb++) {
-			uint32_t c = getblock(level, xb, -yb);
-			
-			if (c == 0xffffff) {
-				
-				// North
-				if (getblock(level, xb - 1, -yb) == 0) {
-					renderwall(&display, zBuffer, zBufferWall, player, xb, yb, xb, yb + 1, c);
-				}
-				// South
-				if (getblock(level, xb + 1, -yb) == 0) {
-					renderwall(&display, zBuffer, zBufferWall, player, xb + 1, yb + 1, xb + 1, yb, c);
-				}
-				// East
-				if (getblock(level, xb, -yb + 1) == 0) {
-					renderwall(&display, zBuffer, zBufferWall, player, xb + 1, yb, xb, yb, c);
-				}
-				// West
-				if (getblock(level, xb, -yb - 1) == 0) {
-					renderwall(&display, zBuffer, zBufferWall, player, xb, yb + 1, xb + 1, yb + 1, c);
+	if (game->drawwalls) {
+		int xb = 0;
+		int yb = 0;
+		int xCenter = (int)floor(xCam);
+		int zCenter = -(int)floor(yCam);
+		for (xb = xCenter - game->renderdist; xb <= xCenter + game->renderdist; xb++) {
+			for (yb = zCenter - game->renderdist; yb <= zCenter + game->renderdist; yb++) {
+				uint32_t c = getblock(level, xb, -yb);
+				if (c == 0xffffff) {
+					// WEST
+					if (getblock(level, xb - 1, -yb) == 0) {
+						renderwall(&display, zBuffer, zBufferWall, camera, xb, yb, xb, yb + 1, c);
+					}
+					// EAST
+					if (getblock(level, xb + 1, -yb) == 0) {
+						renderwall(&display, zBuffer, zBufferWall, camera, xb + 1, yb + 1, xb + 1, yb, c);
+					}
+					// NORTH
+					if (getblock(level, xb, -yb + 1) == 0) {
+						renderwall(&display, zBuffer, zBufferWall, camera, xb + 1, yb, xb, yb, c);
+					}
+					// SOUTH
+					if (getblock(level, xb, -yb - 1) == 0) {
+						renderwall(&display, zBuffer, zBufferWall, camera, xb, yb + 1, xb + 1, yb + 1, c);
+					}
 				}
 			}
 		}
 	}
 	#endif
 
-	
+	// renderSprite(display, game, zBuffer, 4, 4, 0, 16, 16);	
 
 	#ifdef __RENDER_POSTPROCESS__
-	int fogdist = 40 * 7;
-	int ditherfactor = 9;
-	for (int i = 0; i < width * height; i++) {
-		int xp = (i % width);
-		int yp = (i / width) * 14;
-		double zl = zBuffer[i];
-		double xx = ((i % width - width / 2.0) / width);
-		int col = display.pixels[i];
-		int brightness = (int) (fogdist - zl * 6 * (xx * xx * 2 + 1));
-		brightness = (brightness + ((xp + yp) & 2) * ditherfactor) >> 4 << 4;
-		if (brightness < 0) brightness = 0;
-		if (brightness > fogdist) brightness = fogdist;
-		int r = (col >> 16) & 0xff;
-		int g = (col >>  8) & 0xff;
-		int b = (col >>  0) & 0xff;
-		r = r * brightness / fogdist;
-		g = g * brightness / fogdist;
-		b = b * brightness / fogdist;
-		display.pixels[i] = r << 16 | g << 8 | b;
+	if (game->drawfog) {
+		int fogdist = (int) (game->fogdist * 7);
+		if (fogdist < 1) fogdist = 1;
+		int ditherfactor = 4;
+		for (int i = 0; i < WIDTH * HEIGHT; i++) {
+			int xp = (i % WIDTH);
+			int yp = (i / WIDTH) * 14;
+			double zl = zBuffer[i];
+			double xx = ((i % WIDTH - WIDTH / 2.0) / WIDTH);
+			int col = display.pixels[i];
+			int brightness = (int) (fogdist - zl * 6 * (xx * xx * 2 + 1));
+			brightness = (brightness + ((xp + yp) & 2) * ditherfactor) >> 4 << 4;
+			if (brightness < 0) brightness = 0;
+			if (brightness > fogdist) brightness = fogdist;
+			int r = (col >> 16) & 0xff;
+			int g = (col >>  8) & 0xff;
+			int b = (col >>  0) & 0xff;
+			r = r * brightness / fogdist;
+			g = g * brightness / fogdist;
+			b = b * brightness / fogdist;
+			display.pixels[i] = r << 16 | g << 8 | b;
+		}
 	}
 	#endif
 
+	
 
-	// for (int i = 0; i < width * height; i++) display.pixels[i] = getcolor(100 - zBuffer[i], 100 - zBuffer[i], 100 - zBuffer[i]);
+	
 
-	int tcol = 32;
-	int trow = 16;
-	int texsize = 16;
-	int s = 8;
-	double scalesqrt = sqrt(s);
-	int xx = (int) (-player->turnBob * 32) * scalesqrt;
-	int yy = (int) (sin(player->bobPhase * 0.4) * 1 * player->bob + player->bob * 2) * scalesqrt;
-	xx += width / 1.8;
-	yy += height - texsize * s;
-	yy += abs((int) ((-player->turnBob * 12) * scalesqrt));
-	xx += (int) (sin(player->bobPhase * 0.2) * 1 * player->bob + player->bob * 2) * scalesqrt;
-	for (x = 0; x < texsize * s; x++) {
-		int xPix = x + xx;
-		for (y = 0; y < texsize * s; y++) {
-			int yPix = y + yy;
-			unsigned color = gpixel(textures, y/s + tcol, x/s + trow);
-			if (color == 0xff00ff) continue;
-			setpixel(display, xPix, yPix, color);
+	// int tcol = 48;
+	// int trow = 0;
+	// int texsize = 32;
+	// int s = 3;
+	// double scalesqrt = sqrt(s);
+	// int xx = (int) (-camera->turnBob * 42) * scalesqrt;
+	// int yy = (int) (sin(camera->bobPhase * 0.4) * 1 * camera->bob + camera->bob * 1) * scalesqrt * (camera->speed / camera->walkSpeed);
+	// xx += WIDTH / 1.5;
+	// // xx += sin(game->frames / 400.0) * 20;
+	// yy += HEIGHT - texsize * s;
+	// // yy += abs(sin(game->frames / 40.0) * 4);
+	// yy += abs((int) ((-camera->turnBob * 20) * scalesqrt));
+	// xx += (int) (sin(camera->bobPhase * 0.2) * 1 * camera->bob + camera->bob * 2) * scalesqrt;
+	// for (x = 0; x < texsize * s; x++) {
+	// 	int xPix = x + xx;
+	// 	for (y = 0; y < texsize * s; y++) {
+	// 		int yPix = y + yy;
+	// 		unsigned color = gpixel(textures, y/s + tcol, x/s + trow);
+	// 		if (color == 0xff00ff) continue;
+	// 		setpixel(display, xPix, yPix, color);
+	// 	}
+	// }
+
+	// #ifdef __RENDER_DEBUG_INFO__
+	// gprintf(display, 3,  8, "Dir: %s", directions[dir]);
+	// gprintf(display, 3, 16, "       x   y");
+	// gprintf(display, 3, 26, "Tile: %2d, %2d", (int)floor(camera->x), (int)floor(camera->y));
+	// gprintf(display, 3, 36, "frames: %d", game->frames);
+	// #endif /* __RENDER_DEBUG_INFO__ */
+
+	// for (int i = 0; i < WIDTH * HEIGHT; i++) display.pixels[i] = getcolor(100 - zBuffer[i], 100 - zBuffer[i], 100 - zBuffer[i]);
+	if (game->drawprofiler == true) {
+		
+		int h;
+		int profilercenter = HEIGHT / 4;
+
+		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter - FONT_CHAR_H - 2, "Logic");
+		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter + FONT_CHAR_H - 5, "Render");
+
+		gprintf(display, 4, WIDTH/2, "(%f, %f)", game->camera->x, game->camera->y);
+
+		
+		for (int x = 0; x < PROFILER_LOG_DEPTH; x++) {
+			h = (int) (ticktiminghistory[x] * 50000);
+			for (int y = 0; y < h; y++) {
+				int xx = PROFILER_LOG_DEPTH - x;
+				int yy = profilercenter - y - 1;
+				int color = lerpcolor(0x00ff00, getpixel(display, xx, yy), 0.5);
+				setpixel(display, xx, yy, color);
+			}
+			h = (int) (frametiminghistory[x] * 2000);
+			for (int y = 0; y < h; y++) {
+				int xx = PROFILER_LOG_DEPTH - x;
+				int yy = y;
+				yy += profilercenter;
+				int color = lerpcolor(0xD59F61, getpixel(display, xx, yy), 0.5);
+				setpixel(display, xx, yy, color);
+			}
 		}
 	}
 
-	#ifdef __RENDER_CROSSHAIR__
-	// Draw crosshair
-	for (int i = 0; i < 5; i++) setpixel(display, (width / 2), height / 2 - 2 + i, 0xffffff);
-	for (int i = 0; i < 5; i++) setpixel(display, width / 2 - 2 + i, (height / 2), 0xffffff);
-	#endif
-
-	#ifdef __RENDER_DEBUG_INFO__
-	gprintf(display, 3,  8, "Dir: %s", directions[dir]);
-	gprintf(display, 3, 16, "       x   y");
-	gprintf(display, 3, 26, "Tile: %2d, %2d", (int)floor(player->pos.x), (int)floor(player->pos.y));
-	#endif /* __RENDER_DEBUG_INFO__ */
+	scriptdraw(game);
 
 
 	unlock(context);
 	present(context);
+
+	profilerendframe();
 }
 
 
 
+
+
+
+/**
+ * renderwall
+ * 
+ * This function takes a display, zBuffers, a camera reference, and locations
+ * The order of locations are important as they determine the side of the wall to draw textures to
+ */
 #ifdef __RENDER_WALLS__
 static inline void
-renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, double x0, double y0, double x1, double y1, uint32_t c) {
+renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, camera_t *cam, double x0, double y0, double x1, double y1, uint32_t c) {
+
+
+	/**
+	 * 
+	 * Walls in this engine are rendered by giving the
+	 * left position and the right position in and x,y
+	 * plane.
+	 * 
+	 * You can visualize this with this diagram.
+	 * 
+	 *       +z    +-------------+
+	 *             |             |
+	 *             |             |
+	 *             |     WALL    |
+	 *             |             |
+	 *       -z    +-------------+
+	 *             ^             ^
+	 *             (x0, y0)      (x1, y1)
+	 * 
+	 * It will only ever draw the wall if the left side is the
+	 * coordinate for (x0, y0) as it draws left to right
+	 */
 	
-	double xCam = p->pos.x - 0.5;
-	double yCam = -p->pos.y + 0.5;
-	double zCam = -p->pos.z;
-	double rCos = -cos(p->rot);
-	double rSin = sin(p->rot);
-	double xCenter = width / 2;
-	double yCenter = height / 2;
-	int fov = height;
+
+	/**
+	 * Here we get quick access to the position of the camera,
+	 * The accessing and order is strange because in graphics
+	 * Z is not up and down, 
+	 */
+	double xCam = cam->x - 0.5;
+	double yCam = -cam->y + 0.5;
+	double zCam = -cam->z;
+	double rCos = -cos(cam->rot);
+	double rSin = sin(cam->rot);
+
+
+	// Get the center of the screen for future use
+	double xCenter = WIDTH / 2;
+	double yCenter = HEIGHT / 2;
+	
+	/**
+	 * Throught the engine, the fov is the height of the window
+	 */
+	int fov = HEIGHT;
+
+	/**
+	 * Offset one end of the wall to the correct location
+	 * Without this, the left part of the wall would be drawn
+	 * so that it appears to pass through the camera's location
+	 * but start off to the left.
+	 */
 	double xc0 = ((x0 - 0.5) - xCam) * 2;
 	double yc0 = ((y0 - 0.5) - yCam) * 2;
 
+	/**
+	 * Shift that edge to somewhere along the center of
+	 * the screen based on the camera's angle relative to the
+	 * edge of the wall
+	 * zz0 is the z distance (how far away from the camera)
+	 * the corner of the wall is.
+	 * 
+	 * zz0 and zz1 can be visualized like this.
+	 *             +-------------+
+	 *             |             |
+	 *             |             |
+	 *             |    WALL     |
+	 *             |             |
+	 *             +-------------+
+	 *             ^             ^
+	 *             (x0, y0)      (x1, y1)
+	 *        +-   \             /   -+
+	 *        |     \           /     |
+	 *        |      \         /      |
+	 *  zz0 > |       \       /       | < zz1
+	 *        |        \     /        |
+	 *        |         \   /         |
+	 *        +-        Camera       -+
+	 * 
+	 * 
+	 */
 	double xx0 = xc0 * rCos - yc0 * rSin;
 	double u0 = ((-0.5) - zCam) * 2;
 	double l0 = ((+0.5) - zCam) * 2;
 	double zz0 = yc0 * rCos + xc0 * rSin;
 
+	/*
+	 * And now we do the same thing, but with the other edge
+	 * of the wall, we shift it over and position it in
+	 * perspective space.
+	 */
 	double xc1 = ((x1 - 0.5) - xCam) * 2;
 	double yc1 = ((y1 - 0.5) - yCam) * 2;
 
+	/**
+	 * Yet again, shift that right edge to some location along
+	 * the screen so that we can lerp between the two
+	 */
 	double xx1 = xc1 * rCos - yc1 * rSin;
 	double u1 = ((-0.5) - zCam) * 2;
 	double l1 = ((+0.5) - zCam) * 2;
 	double zz1 = yc1 * rCos + xc1 * rSin;
 
+
+	// The texture of the wall
 	double xt0 = 0;
 	double xt1 = 1;
 
@@ -297,16 +429,26 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 
 	double zClip = 0.1;
 
-	if (zz0 < zClip && zz1 < zClip)
-		return;
+	/**
+	 * Dont render the wall if it is too far out of frame
+	 */
+	if (zz0 < zClip && zz1 < zClip) return;
 
+	/**
+	 * Do further clipping because if the camera's angle
+	 * to the wall is too shallow, and the wall is out of
+	 * view, it draws the texture spread out to infinity.
+	 * Here we clip the left side:
+	 */
 	if (zz0 < zClip) {
 		double p = (zClip - zz0) / (zz1 - zz0);
 		zz0 = zz0 + (zz1 - zz0) * p;
 		xx0 = xx0 + (xx1 - xx0) * p;
 		xt0 = xt0 + (xt1 - xt0) * p;
 	}
-
+	/**
+	 * Here we clip the right side
+	 */
 	if (zz1 < zClip) {
 		double p = (zClip - zz0) / (zz1 - zz0);
 		zz1 = zz0 + (zz1 - zz0) * p;
@@ -314,23 +456,54 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 		xt1 = xt0 + (xt1 - xt0) * p;
 	}
 
+	/**
+	 * Here it is decided where the left and right
+	 * side of the wall are located on the screen
+	 *       +z    +-------------+
+	 *             |             |
+	 *             |             |
+	 *             |             |
+	 *             |             |
+	 *       -z    +-------------+
+	 *             ^             ^
+	 *             xPixel0       xPixel1
+	 * 
+	 */
 	double xPixel0 = xCenter - (xx0 / zz0 * fov);
 	double xPixel1 = xCenter - (xx1 / zz1 * fov);
 
-	if (xPixel0 >= xPixel1)
-		return;
+	/**
+	 * If the locations overlap, or are reversed, stop rendering the wall
+	 */
+	if (xPixel0 >= xPixel1) return;
+	/**
+	 * convert the float values for the x locations into ints so we can
+	 * use them to draw pixels to th e screen
+	 */
 	int xp0 = (int) ceil(xPixel0);
 	int xp1 = (int) ceil(xPixel1);
-	if (xp0 < 0)
-		xp0 = 0;
-	if (xp1 > width)
-		xp1 = width;
 
-	double yPixel00 = (u0 / zz0 * fov + yCenter);
-	double yPixel01 = (l0 / zz0 * fov + yCenter);
-	double yPixel10 = (u1 / zz1 * fov + yCenter);
-	double yPixel11 = (l1 / zz1 * fov + yCenter);
+	/**
+	 * Make sure to bound the wall so it doesn't seg fault by rendering outside
+	 * the screen
+	 */
+	if (xp0 < 0) xp0 = 0;
+	if (xp1 > WIDTH) xp1 = WIDTH;
 
+	/**
+	 * This is getting the Y position on the screen
+	 * of all 4 corners of the wall, from here on, we
+	 * just need to rasterize the texture on the wall
+	 */
+	double yTopLeft    = (u0 / zz0 * fov + yCenter);
+	double yBottomLeft = (l0 / zz0 * fov + yCenter);
+	double yTopRight = (u1 / zz1 * fov + yCenter);
+	double yBottomRight = (l1 / zz1 * fov + yCenter);
+
+	/**
+	 * Now that we have the x and y locations of every
+	 * corner of the wall, we can draw it to the screen
+	 */
 	double iz0 = 1 / zz0;
 	double iz1 = 1 / zz1;
 
@@ -339,7 +512,6 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 	double ixt0 = xt0 * iz0;
 	double ixta = xt1 * iz1 - ixt0;
 	double iw = 1 / (xPixel1 - xPixel0);
-	
 
 	for (int x = xp0; x < xp1; x++) {
 		double pr = (x - xPixel0) * iw;
@@ -351,15 +523,13 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 		zBufferWall[x] = zd;
 		int xTex = (int) ((ixt0 + ixta * pr) / iz);
 
-		double yPixel0 = yPixel00 + (yPixel10 - yPixel00) * pr - 0.5;
-		double yPixel1 = yPixel01 + (yPixel11 - yPixel01) * pr;
+		double yPixel0 = yTopLeft + (yTopRight - yTopLeft) * pr - 0.5;
+		double yPixel1 = yBottomLeft + (yBottomRight - yBottomLeft) * pr;
 
 		int yp0 = (int) ceil(yPixel0);
 		int yp1 = (int) ceil(yPixel1);
-		if (yp0 < 0)
-			yp0 = 0;
-		if (yp1 > height)
-			yp1 = height;
+		if (yp0 < 0) yp0 = 0;
+		if (yp1 > HEIGHT) yp1 = HEIGHT;
 
 		double ih = 1 / (yPixel1 - yPixel0);
 		for (int y = yp0; y < yp1; y++) {
@@ -368,14 +538,53 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
 			int xt = yTex + (tex % 8) * 16;
 			int yt = xTex + (col / 8) * 16;
 			int color = gpixel(textures, xt, yt);
-			d->pixels[x + y * width] = color;
-			zbuffer[x + y * width] = 1 / iz * 4;
+			d->pixels[x + y * WIDTH] = color;
+			zbuffer[x + y * WIDTH] = 1 / iz * 4;
 		}
 	}
 }
 #endif /* __RENDER_WALLS__*/
 
 
+
+
+
+
+void
+renderconsole(game_t* game, display_t d) {
+	int x = 0;
+	int y = 0;
+	int i = 0;
+	int linec = game->console->linec;
+	char** linev = game->console->linev;
+	int lineheight = FONT_CHAR_H + 5;
+	int linestorender = HEIGHT / lineheight - 1;
+	for (x = 0; x < WIDTH; x++) {
+		for (y = 0; y < HEIGHT; y++) {
+			unsigned color = d.pixels[x + y * WIDTH];
+			setpixel(d, x, y, colormul(color, 0.1));
+		}
+	}
+	int currentline = 0;
+	for (i = linec - linestorender; i < linec; i++) {
+		if (i >= 0) {
+			gprintf(d, 2, lineheight * currentline, "%s", linev[i]);
+			currentline++;
+		}
+		
+	}
+	
+
+	gprintf(d, 2, lineheight * currentline, ">> %s", game->console->input);
+	int cursoroffset = strlen(game->console->input) + 3;
+	
+	if (sin(game->frames / 10.0) < 0) {
+		gprintf(d, FONT_CHAR_W * cursoroffset, lineheight * currentline, "|");
+	}
+	// textcolor = 0xffffff;
+	
+	
+}
 
 
 
@@ -387,8 +596,7 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, player_t *p, doub
  * The string starts where the top left of the string
  * is at (<x>, <y>)
  */
-#define FONT_CHAR_W 6
-#define FONT_CHAR_H 7
+
 void
 gprintf(display_t d, int x, int y, const char* format, ...) {
 	int i = 0;
@@ -420,8 +628,9 @@ gdrawchar(display_t d, int x, int y, char c) {
 				int yy = yo + co / 16 * h;
 				int pixel = gpixel(font_tex, yy, xx);
 				if (pixel == 0xffffff) {
-					setpixel(d, x + xo, y + yo, 0xffffff);
-					setpixel(d, x + xo, y + yo + 1, 0x000000);
+					setpixel(d, x + xo, y + yo, textcolor);
+					setpixel(d, x + xo, y + yo + 1, colormul(textcolor, 0.4));
+					// setpixel(d, x + xo + 2, y + yo + 2, colormul(textcolor, 0.4));
 				}
 			}
 		}
@@ -432,8 +641,15 @@ gdrawchar(display_t d, int x, int y, char c) {
 
 void
 setpixel(display_t d, int x, int y, unsigned color) {
-	if (x < d.width && y < height)
-		d.pixels[x + y * d.width] = color;
+	if (x < WIDTH && x >= 0 && y >= 0 && y < HEIGHT)
+		d.pixels[x + y * WIDTH] = color;
+}
+
+unsigned
+getpixel(display_t d, int x, int y) {
+	if (x < WIDTH && x >= 0 && y >= 0 && y < HEIGHT)
+		return d.pixels[x + y * WIDTH];
+	return -1;
 }
 
 
@@ -458,4 +674,94 @@ void present(context_t context) {
 	SDL_Rect dst = { 0, 0, w, h, };
 	SDL_RenderCopyEx(context.renderer, context.texture, NULL, &dst, 0, NULL, SDL_FLIP_NONE);
 	SDL_RenderPresent(context.renderer);
+}
+
+
+
+
+// LUA RENDER BINDINGS:
+int l_setpixel(lua_State* L) {
+	int x = (int)lua_tonumber(L, -3);
+	int y = (int)lua_tonumber(L, -2);
+	int c = (int)lua_tonumber(L, -1);
+	setpixel(*globaldisplay, x, y, c);
+	return 1;
+}
+
+int l_getpixel(lua_State* L) {
+	int x = lua_tointeger(L, -3);
+	int y = lua_tointeger(L, -2);
+	lua_pushinteger(L, getpixel(*globaldisplay, x, y));
+	return 1;
+}
+
+
+
+
+
+void
+renderSprite(display_t d, game_t* game, unsigned* zBuffer, double x, double y, double z, int texx, int texy) {
+	double xCam = game->camera->x;
+	double zCam = -game->camera->y;
+	double yCam = -game->camera->z;
+	double rCos = -cos(game->camera->rot);
+	double rSin = sin(game->camera->rot);
+
+
+	double xc = (x - xCam) * 2 - rSin * 0.2;
+	double yc = (-z - yCam) * 2;
+	double zc = (-y - zCam) * 2 - rCos * 0.2;
+
+
+	double xx = xc * rCos - zc * rSin;
+	double yy = yc;
+	double zz = zc * rCos + xc * rSin;
+	
+	
+
+	if (zz < 0.1) return;
+	int fov = HEIGHT;
+	int xCenter = WIDTH / 2;
+	int yCenter = HEIGHT / 2;
+
+	double xPixel = xCenter - (xx / zz * fov);
+	double yPixel = (yy / zz * fov + yCenter);
+
+	double xPixel0 = xPixel - HEIGHT / zz;
+	double xPixel1 = xPixel + HEIGHT / zz;
+
+	double yPixel0 = yPixel - HEIGHT / zz;
+	double yPixel1 = yPixel + HEIGHT / zz;
+
+	int xp0 = (int) ceil(xPixel0);
+	int xp1 = (int) ceil(xPixel1);
+	int yp0 = (int) ceil(yPixel0);
+	int yp1 = (int) ceil(yPixel1);
+
+	if (xp0 < 0)
+		xp0 = 0;
+	if (xp1 > WIDTH)
+		xp1 = WIDTH;
+	if (yp0 < 0)
+		yp0 = 0;
+	if (yp1 > HEIGHT)
+		yp1 = HEIGHT;
+	zz *= 4;
+	for (int yp = yp0; yp < yp1; yp++) {
+		double ypr = (yp - yPixel0) / (yPixel1 - yPixel0);
+		int yt = (int) (ypr * 16);
+		
+		for (int xp = xp0; xp < xp1; xp++) {
+			double xpr = (xp - xPixel0) / (xPixel1 - xPixel0);
+			int xt = (int) (xpr * 16);
+			if (zBuffer[xp + yp * WIDTH] > zz) {
+				int col = gpixel(textures, yt + texy, xt + texx);
+				if (col != 0xff00ff) {
+					d.pixels[xp + yp * WIDTH] = col;
+					zBuffer[xp + yp * WIDTH] = zz;
+				}
+			}
+		}
+	}
+
 }
