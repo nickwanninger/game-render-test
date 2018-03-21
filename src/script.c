@@ -53,8 +53,13 @@ scriptinit(game_t* game) {
 }
 
 void
-scriptdraw(game_t* game) {
-	scriptcall(game, "draw");
+scriptdrawworld(game_t* game) {
+	scriptcall(game, "drawworld");
+}
+
+void
+scriptdrawgui(game_t* game) {
+	scriptcall(game, "drawgui");
 }
 
 void

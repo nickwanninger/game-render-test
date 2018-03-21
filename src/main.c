@@ -13,7 +13,6 @@
 #include "point.h"
 #include "types.h"
 #include "art.h"
-#include "render.h"
 #include "input.h"
 
 #include "game.h"

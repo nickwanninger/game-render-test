@@ -7,9 +7,14 @@
 #include "render.h"
 #include "level.h"
 #include "script.h"
+#include "color.h"
+#include "util.h"
 
 
 #include "profiler.h"
+
+
+extern pthread_mutex_t resizemutex;
 
 
 #define __RENDER_WALLS__
@@ -31,20 +36,17 @@
 char* directions[] = {"North", "East", "South", "West"};
 
 
-
 unsigned textcolor = 0xffffff;
 
-graphic_t *textures = NULL;
-graphic_t *font_tex = NULL;
+extern pthread_mutex_t mutex;
 
+extern graphic_t* textures;
+extern graphic_t* font_tex;
+
+game_t* globalgame;
 display_t* globaldisplay;
 
 
-void
-ginit(void) {
-	font_tex = gopen("assets/font.bmp");
-	textures = gopen("assets/textures.bmp");
-}
 
 unsigned
 getcolor(unsigned char r, unsigned char g, unsigned char b) {
@@ -86,8 +88,27 @@ colormul(unsigned c, float m) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 void
 render(game_t* game) {
+	
+	pthread_mutex_lock(&resizemutex);
+	// int width = game->context->width;
+	// int height = game->context->height;
 	
 	profilerstartframe();
 
@@ -96,15 +117,7 @@ render(game_t* game) {
 	camera_t* camera = game->camera;
 	display_t display = lock(context);
 	globaldisplay = &display;
-	
-
-	unsigned zBuffer[WIDTH * HEIGHT];
-	int zBufferWall[WIDTH];
-	for (int i = 0; i < WIDTH; i++) zBufferWall[i] = 0;
-
-	// for (int i = 0; i < WIDTH * HEIGHT; i++) display.pixels[i] = 0;
-	
-	
+	globalgame = game;
 
 	double rCos = cos(camera->rot);
 	double rSin = sin(camera->rot);
@@ -114,17 +127,17 @@ render(game_t* game) {
 
 	// int dir = (int) ((2 * camera->rot) / PI + 4.5) % 4;
 
-	int fov = HEIGHT;
+	int fov = game->context->height;
 
 	int y = 0;
 	int x = 0;
 
 	
 
-	double yCenter = HEIGHT / 2;
+	double yCenter = game->context->height / 2;
 
 	if (game->drawfloor) {
-		for (y = 0; y < HEIGHT; y++) {
+		for (y = 0; y < game->context->height; y++) {
 			double yd = ((y + 0.5) - yCenter) / fov;
 			double zd = (4 + zCam * 8) / yd;
 			if (yd < 0) {
@@ -133,8 +146,8 @@ render(game_t* game) {
 
 			
 
-			for (x = 0; x < WIDTH; x++) {
-				double xd = (x - WIDTH / 2.0) / HEIGHT;
+			for (x = 0; x < game->context->width; x++) {
+				double xd = (x - game->context->width / 2.0) / game->context->height;
 				xd *= zd;
 
 				double xx = xd * rCos + zd * rSin + (xCam + 0.5) * 8;
@@ -150,7 +163,7 @@ render(game_t* game) {
 				int tilex = xx / 8;
 				int tiley = yy / 8;
 
-				zBuffer[x + y * WIDTH] = zd;
+				display.zBuffer[x + y * game->context->width] = zd;
 
 				unsigned tile = getblock(level, xx / 8, yy / 8);
 				unsigned color = tile;
@@ -161,10 +174,13 @@ render(game_t* game) {
 				if (tiley < 0 || tiley > level.height + 1) continue;
 
 				// if (y < yCenter) color = 0;
-				display.pixels[x + y * WIDTH] = color;
+				// printf("here\n");
+				display.pixels[x + y * game->context->width] = color;
 			}
 		}
 	}
+
+	
 
 	#ifdef __RENDER_WALLS__
 	if (game->drawwalls) {
@@ -178,25 +194,28 @@ render(game_t* game) {
 				if (c == 0xffffff) {
 					// WEST
 					if (getblock(level, xb - 1, -yb) == 0) {
-						renderwall(&display, zBuffer, zBufferWall, camera, xb, yb, xb, yb + 1, c);
+						renderwall(&display, camera, xb, yb, xb, yb + 1, c);
 					}
 					// EAST
 					if (getblock(level, xb + 1, -yb) == 0) {
-						renderwall(&display, zBuffer, zBufferWall, camera, xb + 1, yb + 1, xb + 1, yb, c);
+						renderwall(&display, camera, xb + 1, yb + 1, xb + 1, yb, c);
 					}
 					// NORTH
 					if (getblock(level, xb, -yb + 1) == 0) {
-						renderwall(&display, zBuffer, zBufferWall, camera, xb + 1, yb, xb, yb, c);
+						renderwall(&display, camera, xb + 1, yb, xb, yb, c);
 					}
 					// SOUTH
 					if (getblock(level, xb, -yb - 1) == 0) {
-						renderwall(&display, zBuffer, zBufferWall, camera, xb, yb + 1, xb + 1, yb + 1, c);
+						renderwall(&display, camera, xb, yb + 1, xb + 1, yb + 1, c);
 					}
 				}
 			}
 		}
 	}
 	#endif
+
+
+	scriptdrawworld(game);
 
 	// renderSprite(display, game, zBuffer, 4, 4, 0, 16, 16);	
 
@@ -205,11 +224,11 @@ render(game_t* game) {
 		int fogdist = (int) (game->fogdist * 7);
 		if (fogdist < 1) fogdist = 1;
 		int ditherfactor = 4;
-		for (int i = 0; i < WIDTH * HEIGHT; i++) {
-			int xp = (i % WIDTH);
-			int yp = (i / WIDTH) * 14;
-			double zl = zBuffer[i];
-			double xx = ((i % WIDTH - WIDTH / 2.0) / WIDTH);
+		for (int i = 0; i < game->context->width * game->context->height; i++) {
+			int xp = (i % game->context->width);
+			int yp = (i / game->context->width) * 14;
+			double zl = display.zBuffer[i];
+			double xx = ((i % game->context->width - game->context->width / 2.0) / game->context->width);
 			int col = display.pixels[i];
 			int brightness = (int) (fogdist - zl * 6 * (xx * xx * 2 + 1));
 			brightness = (brightness + ((xp + yp) & 2) * ditherfactor) >> 4 << 4;
@@ -237,9 +256,9 @@ render(game_t* game) {
 	// double scalesqrt = sqrt(s);
 	// int xx = (int) (-camera->turnBob * 42) * scalesqrt;
 	// int yy = (int) (sin(camera->bobPhase * 0.4) * 1 * camera->bob + camera->bob * 1) * scalesqrt * (camera->speed / camera->walkSpeed);
-	// xx += WIDTH / 1.5;
+	// xx += width / 1.5;
 	// // xx += sin(game->frames / 400.0) * 20;
-	// yy += HEIGHT - texsize * s;
+	// yy += height - texsize * s;
 	// // yy += abs(sin(game->frames / 40.0) * 4);
 	// yy += abs((int) ((-camera->turnBob * 20) * scalesqrt));
 	// xx += (int) (sin(camera->bobPhase * 0.2) * 1 * camera->bob + camera->bob * 2) * scalesqrt;
@@ -260,16 +279,16 @@ render(game_t* game) {
 	// gprintf(display, 3, 36, "frames: %d", game->frames);
 	// #endif /* __RENDER_DEBUG_INFO__ */
 
-	// for (int i = 0; i < WIDTH * HEIGHT; i++) display.pixels[i] = getcolor(100 - zBuffer[i], 100 - zBuffer[i], 100 - zBuffer[i]);
+	// for (int i = 0; i < width * height; i++) display.pixels[i] = getcolor(100 - zBuffer[i], 100 - zBuffer[i], 100 - zBuffer[i]);
 	if (game->drawprofiler == true) {
 		
 		int h;
-		int profilercenter = HEIGHT / 4;
+		int profilercenter = game->context->height / 4;
 
 		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter - FONT_CHAR_H - 2, "Logic");
 		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter + FONT_CHAR_H - 5, "Render");
 
-		gprintf(display, 4, WIDTH/2, "(%f, %f)", game->camera->x, game->camera->y);
+		gprintf(display, 4, game->context->width/2, "(%f, %f)", game->camera->x, game->camera->y);
 
 		
 		for (int x = 0; x < PROFILER_LOG_DEPTH; x++) {
@@ -277,9 +296,11 @@ render(game_t* game) {
 			for (int y = 0; y < h; y++) {
 				int xx = PROFILER_LOG_DEPTH - x;
 				int yy = profilercenter - y - 1;
-				int color = lerpcolor(0x00ff00, getpixel(display, xx, yy), 0.5);
+				int c = h > 16 ? 0xff0000 : 0x00ff00;
+				int color = lerpcolor(c, getpixel(display, xx, yy), 0.5);
 				setpixel(display, xx, yy, color);
 			}
+
 			h = (int) (frametiminghistory[x] * 2000);
 			for (int y = 0; y < h; y++) {
 				int xx = PROFILER_LOG_DEPTH - x;
@@ -291,13 +312,14 @@ render(game_t* game) {
 		}
 	}
 
-	scriptdraw(game);
+	scriptdrawgui(game);
 
 
-	unlock(context);
+	unlock(context, display);
 	present(context);
 
 	profilerendframe();
+	pthread_mutex_unlock(&resizemutex);
 }
 
 
@@ -313,9 +335,7 @@ render(game_t* game) {
  */
 #ifdef __RENDER_WALLS__
 static inline void
-renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, camera_t *cam, double x0, double y0, double x1, double y1, uint32_t c) {
-
-
+renderwall (display_t *d, camera_t *cam, double x0, double y0, double x1, double y1, uint32_t c) {
 	/**
 	 * 
 	 * Walls in this engine are rendered by giving the
@@ -351,13 +371,13 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, camera_t *cam, do
 
 
 	// Get the center of the screen for future use
-	double xCenter = WIDTH / 2;
-	double yCenter = HEIGHT / 2;
+	double xCenter = d->width / 2;
+	double yCenter = d->height / 2;
 	
 	/**
 	 * Throught the engine, the fov is the height of the window
 	 */
-	int fov = HEIGHT;
+	int fov = d->height;
 
 	/**
 	 * Offset one end of the wall to the correct location
@@ -488,7 +508,7 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, camera_t *cam, do
 	 * the screen
 	 */
 	if (xp0 < 0) xp0 = 0;
-	if (xp1 > WIDTH) xp1 = WIDTH;
+	if (xp1 > d->width) xp1 = d->width;
 
 	/**
 	 * This is getting the Y position on the screen
@@ -517,19 +537,20 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, camera_t *cam, do
 		double pr = (x - xPixel0) * iw;
 		double iz = iz0 + iza * pr;
 		double zd = iz * 255;
-		if (zBufferWall[x] > zd) {
+		if (d->zBufferWall[x] > zd) {
 			continue;
 		}
-		zBufferWall[x] = zd;
+		d->zBufferWall[x] = zd;
 		int xTex = (int) ((ixt0 + ixta * pr) / iz);
 
 		double yPixel0 = yTopLeft + (yTopRight - yTopLeft) * pr - 0.5;
 		double yPixel1 = yBottomLeft + (yBottomRight - yBottomLeft) * pr;
 
+
 		int yp0 = (int) ceil(yPixel0);
 		int yp1 = (int) ceil(yPixel1);
 		if (yp0 < 0) yp0 = 0;
-		if (yp1 > HEIGHT) yp1 = HEIGHT;
+		if (yp1 > d->height) yp1 = d->height;
 
 		double ih = 1 / (yPixel1 - yPixel0);
 		for (int y = yp0; y < yp1; y++) {
@@ -538,8 +559,9 @@ renderwall (display_t *d, unsigned* zbuffer, int* zBufferWall, camera_t *cam, do
 			int xt = yTex + (tex % 8) * 16;
 			int yt = xTex + (col / 8) * 16;
 			int color = gpixel(textures, xt, yt);
-			d->pixels[x + y * WIDTH] = color;
-			zbuffer[x + y * WIDTH] = 1 / iz * 4;
+			d->pixels[x + y * d->width] = color;
+			d->zBuffer[x + y * d->width] = 1 / iz * 4;
+			
 		}
 	}
 }
@@ -558,10 +580,10 @@ renderconsole(game_t* game, display_t d) {
 	int linec = game->console->linec;
 	char** linev = game->console->linev;
 	int lineheight = FONT_CHAR_H + 5;
-	int linestorender = HEIGHT / lineheight - 1;
-	for (x = 0; x < WIDTH; x++) {
-		for (y = 0; y < HEIGHT; y++) {
-			unsigned color = d.pixels[x + y * WIDTH];
+	int linestorender = d.height / lineheight - 1;
+	for (x = 0; x < d.width; x++) {
+		for (y = 0; y < d.height; y++) {
+			unsigned color = d.pixels[x + y * d.width];
 			setpixel(d, x, y, colormul(color, 0.1));
 		}
 	}
@@ -641,36 +663,46 @@ gdrawchar(display_t d, int x, int y, char c) {
 
 void
 setpixel(display_t d, int x, int y, unsigned color) {
-	if (x < WIDTH && x >= 0 && y >= 0 && y < HEIGHT)
-		d.pixels[x + y * WIDTH] = color;
+	if (x < d.width && x >= 0 && y >= 0 && y < d.height)
+		d.pixels[x + y * d.width] = color;
 }
 
 unsigned
 getpixel(display_t d, int x, int y) {
-	if (x < WIDTH && x >= 0 && y >= 0 && y < HEIGHT)
-		return d.pixels[x + y * WIDTH];
+	if (x < d.width && x >= 0 && y >= 0 && y < d.height)
+		return d.pixels[x + y * d.width];
 	return -1;
 }
-
 
 display_t
 lock(context_t context) {
 	void* screen;
 	int pitch;
 	SDL_LockTexture(context.texture, NULL, &screen, &pitch);
-	display_t display = { (uint32_t*) screen, pitch / (int) sizeof(uint32_t) };
+	display_t display;// = { (uint32_t*) screen, pitch / (int) sizeof(uint32_t) };
+	display.pixels = (uint32_t*) screen;
+	display.width = pitch / (int) sizeof(uint32_t);
+	display.height = context.height;
+	// printf("%d, %d\n", display.width, display.height);
+	display.zBuffer = (unsigned*)xcalloc(display.width * display.height, 4);
+	display.zBufferWall = (unsigned*)xcalloc(display.width, 4);
 	return display;
 }
 
 
-void unlock(context_t context) {
+
+
+
+void unlock(context_t context, display_t display) {
 	SDL_UnlockTexture(context.texture);
+	free(display.zBuffer);
+	free(display.zBufferWall);
 }
 
 
 void present(context_t context) {
-	int w = (int) (context.w * context.scale);
-	int h = (int) (context.h * context.scale);
+	int w = (int) (context.width * context.scale);
+	int h = (int) (context.height * context.scale);
 	SDL_Rect dst = { 0, 0, w, h, };
 	SDL_RenderCopyEx(context.renderer, context.texture, NULL, &dst, 0, NULL, SDL_FLIP_NONE);
 	SDL_RenderPresent(context.renderer);
@@ -695,12 +727,25 @@ int l_getpixel(lua_State* L) {
 	return 1;
 }
 
+int l_rendersprite(lua_State* L) {
+	int texy = (int)lua_tointeger(L, -1);
+	int texx = (int)lua_tointeger(L, -2);
+	double z = (double)lua_tonumber(L, -3);
+	// printf("%f\t", z);
+	double y = (double)lua_tonumber(L, -4);
+	// printf("%f\t", y);
+	double x = (double)lua_tonumber(L, -5);
+	// printf("%f\n", x);
+	renderSprite(*globaldisplay, globalgame, x, y, z, texx, texy);
+	return 0;
+}
+
 
 
 
 
 void
-renderSprite(display_t d, game_t* game, unsigned* zBuffer, double x, double y, double z, int texx, int texy) {
+renderSprite(display_t d, game_t* game, double x, double y, double z, int texx, int texy) {
 	double xCam = game->camera->x;
 	double zCam = -game->camera->y;
 	double yCam = -game->camera->z;
@@ -720,18 +765,18 @@ renderSprite(display_t d, game_t* game, unsigned* zBuffer, double x, double y, d
 	
 
 	if (zz < 0.1) return;
-	int fov = HEIGHT;
-	int xCenter = WIDTH / 2;
-	int yCenter = HEIGHT / 2;
+	int fov = d.height;
+	int xCenter = d.width / 2;
+	int yCenter = d.height / 2;
 
 	double xPixel = xCenter - (xx / zz * fov);
 	double yPixel = (yy / zz * fov + yCenter);
 
-	double xPixel0 = xPixel - HEIGHT / zz;
-	double xPixel1 = xPixel + HEIGHT / zz;
+	double xPixel0 = xPixel - d.height / zz;
+	double xPixel1 = xPixel + d.height / zz;
 
-	double yPixel0 = yPixel - HEIGHT / zz;
-	double yPixel1 = yPixel + HEIGHT / zz;
+	double yPixel0 = yPixel - d.height / zz;
+	double yPixel1 = yPixel + d.height / zz;
 
 	int xp0 = (int) ceil(xPixel0);
 	int xp1 = (int) ceil(xPixel1);
@@ -740,12 +785,12 @@ renderSprite(display_t d, game_t* game, unsigned* zBuffer, double x, double y, d
 
 	if (xp0 < 0)
 		xp0 = 0;
-	if (xp1 > WIDTH)
-		xp1 = WIDTH;
+	if (xp1 > d.width)
+		xp1 = d.width;
 	if (yp0 < 0)
 		yp0 = 0;
-	if (yp1 > HEIGHT)
-		yp1 = HEIGHT;
+	if (yp1 > d.height)
+		yp1 = d.height;
 	zz *= 4;
 	for (int yp = yp0; yp < yp1; yp++) {
 		double ypr = (yp - yPixel0) / (yPixel1 - yPixel0);
@@ -754,14 +799,13 @@ renderSprite(display_t d, game_t* game, unsigned* zBuffer, double x, double y, d
 		for (int xp = xp0; xp < xp1; xp++) {
 			double xpr = (xp - xPixel0) / (xPixel1 - xPixel0);
 			int xt = (int) (xpr * 16);
-			if (zBuffer[xp + yp * WIDTH] > zz) {
+			if (d.zBuffer[xp + yp * d.width] > zz) {
 				int col = gpixel(textures, yt + texy, xt + texx);
 				if (col != 0xff00ff) {
-					d.pixels[xp + yp * WIDTH] = col;
-					zBuffer[xp + yp * WIDTH] = zz;
+					d.pixels[xp + yp * d.width] = col;
+					d.zBuffer[xp + yp * d.width] = zz;
 				}
 			}
 		}
 	}
-
 }

@@ -1,3 +1,5 @@
+-- From sdl :)
+
 keycodes = {
 	KEY_UNKNOWN = 0,
 	KEY_A = 4,

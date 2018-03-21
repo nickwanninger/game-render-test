@@ -6,6 +6,7 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#include "util.h"
 
 #define LTILEX(x, width) (x)
 #define LTILEY(y, height) (height - x)
@@ -29,9 +30,8 @@ lopen(char* filename) {
 	
 	int width = data->width;
 	int height = data->height;
-	// char* tiles = malloc(width * height * 4);
 
-	level_t* level = malloc(sizeof(level_t));
+	level_t* level = xmalloc(sizeof(level_t));
 	level->tiles = calloc(width * height, sizeof(level_tile_t));
 	level->width = width;
 	level->height = height;

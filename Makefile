@@ -1,6 +1,6 @@
 CC = clang
 WARNINGS = -Wall -Wformat
-CFLAGS =  -I./include
+CFLAGS =  -I./include -O3
 LDLIBS = -lSDL2 -lm -lpthread -llua
 version = 0.0.4
 

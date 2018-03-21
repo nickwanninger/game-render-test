@@ -3,21 +3,21 @@
 
 #include <SDL2/SDL.h>
 
-#define SCALE 3
-#define WIDTH 270
-#define HEIGHT 190
-// #define WIDTH 160
-// #define HEIGHT 120
+// #define SCALE 4
+// #define WIDTH 270
+// #define HEIGHT 190
 
 typedef struct {
 	SDL_Window* window;
 	SDL_Renderer* renderer;
 	SDL_Texture* texture;
-	int w;
-	int h;
+	int width;
+	int height;
 	float scale;
 } context_t;
 
-context_t* contextinit();
+
+int contextresize(context_t* context, int width, int height, float scale);
+context_t* contextinit(int width, int height, float scale);
 
 #endif

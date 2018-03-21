@@ -9,6 +9,8 @@ __camera__.__index = camera_index
 __camera__.__newindex = camera_newindex
 
 
+
+
 __game__ = {}
 setmetatable(__game__, __game__)
 function __game__.__call()
@@ -31,4 +33,5 @@ game = __game__()
 function init() end
 function preupdate() end
 function update() end
-function draw() end
+function drawworld() end
+function drawgui() end

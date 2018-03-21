@@ -2,6 +2,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include "util.h"
 
 #include "console.h"
 
@@ -12,7 +13,7 @@ lua_State* globalL;
 
 
 console_t* initconsole() {
-	console_t* c = malloc(sizeof(console_t));
+	console_t* c = xmalloc(sizeof(console_t));
 	c->active = false;
 	// Allocate 255 bytes to the input.
 	c->input = calloc(CONSOLE_INPUT_LENGTH, 1);
@@ -67,7 +68,7 @@ consolepushline(console_t* console, char* line) {
 	}
 
 	int i = console->linec++;
-	console->linev[i] = malloc(CONSOLE_INPUT_LENGTH);
+	console->linev[i] = xmalloc(CONSOLE_INPUT_LENGTH);
 
 	memcpy(console->linev[i], line, CONSOLE_INPUT_LENGTH - 1);
 	return 1;
@@ -120,7 +121,7 @@ consoleinputeval(console_t* console, lua_State* L) {
 	lua_settop(L, 0);
 
 	int status;
-	char* command = malloc(CONSOLE_INPUT_LENGTH + 1);
+	char* command = xmalloc(CONSOLE_INPUT_LENGTH + 1);
 	memcpy(command, console->input, CONSOLE_INPUT_LENGTH);
 	status = luaL_dostring(L, command);
 

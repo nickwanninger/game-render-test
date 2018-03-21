@@ -12,7 +12,8 @@
 
 void scriptinit(game_t* game);
 void scriptcall(game_t* game, char* func);
-void scriptdraw(game_t* game);
+void scriptdrawworld(game_t* game);
+void scriptdrawgui(game_t* game);
 void scriptupdate(game_t* game);
 void scriptpreupdate(game_t* game);
 void scriptonkeydown(game_t* game, int code);

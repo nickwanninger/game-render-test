@@ -6,12 +6,13 @@
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+#include <math.h>
 
 #include "input.h"
 #include "render.h"
 #include "script.h"
 #include "profiler.h"
-
+#include "util.h"
 #include "lautoc.h"
 
 
@@ -29,12 +30,19 @@ game_t* globalgame;
 game_t*
 gameinit(char* levelname) {
 
+
+		
+
+	float scale = 4;
+	int width = 270;
+	int height = 190;
+
 	SDL_StartTextInput();
 	
 
 	char* scriptname = "script.lua";
 
-	game_t* game = malloc(sizeof(game_t));
+	game_t* game = xmalloc(sizeof(game_t));
 	
 
 	// Setup the lua env
@@ -79,10 +87,10 @@ gameinit(char* levelname) {
 	game->fogdist = 40.0;
 
 	game->console = initconsole();
-	
+
 
 	game->level = lopen(levelname);
-	game->context = contextinit();
+	game->context = contextinit(width, height, scale);
 	game->camera = camerainit(game->level);
 	globalgame = game;
 	return game;
@@ -158,17 +166,6 @@ luainject(game_t* game) {
 	luaA_struct_member(L, camera_t, y, double);
 	luaA_struct_member(L, camera_t, z, double);
 	luaA_struct_member(L, camera_t, rot, double);
-	// luaA_struct_member(L, camera_t, ax, double);
-	// luaA_struct_member(L, camera_t, vx, double);
-	// luaA_struct_member(L, camera_t, ay, double);
-	// luaA_struct_member(L, camera_t, vy, double);
-	
-	// luaA_struct_member(L, camera_t, rota, double);
-	// luaA_struct_member(L, camera_t, walkSpeed, double);
-	// luaA_struct_member(L, camera_t, speed, double);
-	// luaA_struct_member(L, camera_t, bobPhase, double);
-	// luaA_struct_member(L, camera_t, bob, double);
-	// luaA_struct_member(L, camera_t, turnBob, double);
 
 	lua_register(L, "camera_index", camera_index);
 	lua_register(L, "camera_newindex", camera_newindex);
@@ -184,6 +181,8 @@ luainject(game_t* game) {
 	luaA_struct_member(L, game_t, drawfog, bool);
 	luaA_struct_member(L, game_t, fogdist, double);
 	luaA_struct_member(L, game_t, drawprofiler, bool);
+
+
 	lua_register(L, "key_down", game_keystate);
 	lua_register(L, "game_index", game_index);
 	lua_register(L, "game_newindex", game_newindex);
@@ -193,17 +192,18 @@ luainject(game_t* game) {
 
 	lua_register(L, "setpixel", l_setpixel);
 	lua_register(L, "getpixel", l_getpixel);
-
-
-	
+	lua_register(L, "rendersprite", l_rendersprite);
 }
 
 
 
 
-
+int t = 0;
 void
 gameupdate(game_t* game) {
+	t++;
+
+	// if (t % 5 == 0) contextresize(game->context, game->context->width, (int)((sin(t / 100.0) + 1) * 50 + 10), game->context->scale);
 	handleinput(game);
 }
 
@@ -231,14 +231,6 @@ gamerenderthread(void *arg) {
 		render(game);
 		// usleep(100000);
 		game->frames++;
-
-		// int fps = 0;
-		// double t = 0;
-		// for (fps = 0; fps < PROFILER_LOG_DEPTH; fps++) {
-		// 	if (t >= 1) continue;;
-		// 	t += frametiminghistory[fps];
-		// }
-		// game->fps = (int)(t * 100);
 	}
 	pthread_exit(0);
 	return 0;

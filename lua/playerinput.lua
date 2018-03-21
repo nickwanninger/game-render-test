@@ -74,9 +74,8 @@ function handlecamerainput()
 	speed = math.sqrt(ax * ax + ay * ay)
 	camera.x = camera.x + ax
 	camera.y = camera.y + ay
-	camera.z = 0.2 + math.sin(headbobPhase * 0.4) * 0.01 * headbob;
-
-
+	-- math.sin(game.frames / 40) / 2
+	camera.z = 0+ math.sin(headbobPhase * 0.4) * 0.01 * headbob;
 
 	-- apply friction to acceleration
 	ax = ax * 0.6;

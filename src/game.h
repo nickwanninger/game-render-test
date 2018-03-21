@@ -21,6 +21,8 @@ typedef struct {
 	level_t* level;
 	console_t* console;
 	lua_State* lua;
+	int width;
+	int height;
 	int frames;
 	int fps;
 	uint8_t* keystate;

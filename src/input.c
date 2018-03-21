@@ -8,6 +8,7 @@
 #include <math.h>
 #include "script.h"
 #include "console.h"
+#include "context.h"
 
 #define __HANDLE_COLLISIONS__
 
@@ -40,11 +41,15 @@ inputEventWatcher(game_t* game) {
 					exit(0);
 				case SDL_KEYDOWN:
 					scriptonkeydown(game, event.key.keysym.scancode);
+
+
+
+					
 					// if (game->console->active) {
 						
-					// 	if (event.key.keysym.sym == SDLK_BACKSPACE) {
-					// 		consoleinputdelchar(game->console);
-					// 	}
+					if (event.key.keysym.sym == SDLK_BACKSPACE) {
+						contextresize(game->context, 640, 480, 1);
+					}
 					// 	// Clear with ctrl+c
 					// 	if (event.key.keysym.sym == SDLK_c && SDL_GetModState() & KMOD_CTRL) {
 					// 		consoleinputclear(game->console);
