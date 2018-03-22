@@ -29,17 +29,13 @@ game_t* globalgame;
 
 game_t*
 gameinit(char* levelname) {
-
-
-		
-
+	
 	float scale = 4;
 	int width = 270;
 	int height = 190;
 
 	SDL_StartTextInput();
 	
-
 	char* scriptname = "script.lua";
 
 	game_t* game = xmalloc(sizeof(game_t));

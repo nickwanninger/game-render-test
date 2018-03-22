@@ -212,6 +212,7 @@ render(game_t* game) {
 			}
 		}
 	}
+	renderwall(&display, camera, 3, 3, 5, 5, 0xffffff);
 	#endif
 
 
@@ -223,7 +224,7 @@ render(game_t* game) {
 	if (game->drawfog) {
 		int fogdist = (int) (game->fogdist * 7);
 		if (fogdist < 1) fogdist = 1;
-		int ditherfactor = 4;
+		int ditherfactor = 0;
 		for (int i = 0; i < game->context->width * game->context->height; i++) {
 			int xp = (i % game->context->width);
 			int yp = (i / game->context->width) * 14;
@@ -314,13 +315,18 @@ render(game_t* game) {
 
 	scriptdrawgui(game);
 
-
-	unlock(context, display);
 	present(context);
+	unlock(context, display);
+	
 
 	profilerendframe();
 	pthread_mutex_unlock(&resizemutex);
 }
+
+
+
+
+
 
 
 
@@ -336,6 +342,9 @@ render(game_t* game) {
 #ifdef __RENDER_WALLS__
 static inline void
 renderwall (display_t *d, camera_t *cam, double x0, double y0, double x1, double y1, uint32_t c) {
+
+	y0 *= -1;
+	y1 *= -1;
 	/**
 	 * 
 	 * Walls in this engine are rendered by giving the

@@ -7,9 +7,9 @@ ticks = 0
 
 
 function init()
-	-- game.drawwalls = false
-	-- game.drawfloor = not keys["2"]
-	-- game.drawfog = false
+	game.drawwalls = false
+	-- game.drawfloor = false
+	game.drawfog = false
 	-- game.fogdist = 100
 	
 end

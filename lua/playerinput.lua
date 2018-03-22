@@ -62,8 +62,8 @@ function handlecamerainput()
 
 	newtx = math.floor(camera.x + ax + r * math.sign(ax))
 	newty = math.floor(camera.y + ay + r * math.sign(ay))
-	xb = getblock(newtx, ty)
-	yb = getblock(tx, newty)
+	xb = 0--getblock(newtx, ty)
+	yb = 0--getblock(tx, newty)
 	if xb ~= 0 and xb ~= 0x00ff00 then
 		ax = 0;
 	end
@@ -75,7 +75,7 @@ function handlecamerainput()
 	camera.x = camera.x + ax
 	camera.y = camera.y + ay
 	-- math.sin(game.frames / 40) / 2
-	camera.z = 0+ math.sin(headbobPhase * 0.4) * 0.01 * headbob;
+	camera.z = 0.2 + math.sin(headbobPhase * 0.4) * 0.01 * headbob;
 
 	-- apply friction to acceleration
 	ax = ax * 0.6;

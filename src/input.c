@@ -48,7 +48,7 @@ inputEventWatcher(game_t* game) {
 					// if (game->console->active) {
 						
 					if (event.key.keysym.sym == SDLK_BACKSPACE) {
-						contextresize(game->context, 640, 480, 1);
+						contextresize(game->context, 64, 64, 10);
 					}
 					// 	// Clear with ctrl+c
 					// 	if (event.key.keysym.sym == SDLK_c && SDL_GetModState() & KMOD_CTRL) {
