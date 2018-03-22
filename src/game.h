@@ -23,10 +23,11 @@ typedef struct {
 	lua_State* lua;
 	int width;
 	int height;
-	int frames;
+	uint64_t frames;
+	uint64_t ticks;
 	int fps;
+	int tps;
 	uint8_t* keystate;
-
 	bool drawwalls;
 	bool drawfog;
 	bool drawfloor;

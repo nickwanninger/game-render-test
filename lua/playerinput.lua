@@ -62,8 +62,8 @@ function handlecamerainput()
 
 	newtx = math.floor(camera.x + ax + r * math.sign(ax))
 	newty = math.floor(camera.y + ay + r * math.sign(ay))
-	xb = 0--getblock(newtx, ty)
-	yb = 0--getblock(tx, newty)
+	xb = getblock(newtx, ty)
+	yb = getblock(tx, newty)
 	if xb ~= 0 and xb ~= 0x00ff00 then
 		ax = 0;
 	end

@@ -1,7 +1,7 @@
-CC = clang
-WARNINGS = -Wall -Wformat
-CFLAGS =  -I./include -O3
-LDLIBS = -lSDL2 -lm -lpthread -llua
+CC = gcc
+WARNINGS = -Wall -Wformat -Wno-deprecated-declarations
+CFLAGS =  -I./include -O3 -g
+LDLIBS = -lSDL2 -lm -lpthread -llua -framework OpenGL
 version = 0.0.4
 
 objs = $(srcs:.c=.o)
@@ -29,7 +29,7 @@ $(OBJDIR)/%.o: $(addprefix $(SRCDIR)/,%.c)
 	@mkdir -p $(dir $@)
 	@$(CC) $(WARNINGS) $(CFLAGS) -c $< -o $@
 
-$(exe): $(OBJFILES)
+$(exe):  $(OBJFILES)
 	@echo "Linking      \x1B[93m$@\x1B[0m \x1B[2m<- $(OBJDIR)/*\x1B[0m "
 	@$(CC) $(WARNINGS) $(LDLIBS) -o $@ $(foreach i,$^,$(i) )
 	@echo "\x1B[93mCompiled     v$(version)\x1B[0m"
@@ -40,6 +40,7 @@ cleanall:
 clean:
 	rm $(exe)
 	rm $(OBJDIR)/*.o
+	rm $(OBJDIR)/render/*.o
 	# rm -rf luajit/**/*.o
 
 

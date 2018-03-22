@@ -21,21 +21,6 @@
 #define MODE_PLAY 0
 #define MODE_EDIT 1
 
-
-// #define __SINGLE_THREADED__
-
-
-// const float scale = 4;
-// const int width = 280;
-// const int height = 190;
-// const float scale = 3;
-// const int width = 350;
-// const int height = 260;
-
-
-// pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-
-
 camera_t camera = {};
 context_t context = {};
 level_t level = {};

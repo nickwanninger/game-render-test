@@ -6,8 +6,8 @@ typedef struct {
 	uint32_t* pixels;
 	int width;
 	int height;
-	unsigned* zBuffer;
-	unsigned* zBufferWall;
+	double* zBuffer;
+	double* zBufferWall;
 } display_t;
 
 typedef struct {

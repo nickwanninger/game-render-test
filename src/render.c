@@ -3,8 +3,8 @@
 #include <string.h>
 #include <math.h>
 #include <pthread.h>
-#include "context.h"
 #include "render.h"
+#include "context.h"
 #include "level.h"
 #include "script.h"
 #include "color.h"
@@ -17,7 +17,6 @@
 extern pthread_mutex_t resizemutex;
 
 
-#define __RENDER_WALLS__
 #define __RENDER_POSTPROCESS__
 #define __RENDER_DEBUG_INFO__
 #define __RENDER_CROSSHAIR__
@@ -45,6 +44,13 @@ extern graphic_t* font_tex;
 
 game_t* globalgame;
 display_t* globaldisplay;
+camera_t camera;
+
+drawqueue_t drawqueue = {
+	0,
+	0,
+	NULL,
+};
 
 
 
@@ -105,11 +111,16 @@ colormul(unsigned c, float m) {
 
 void
 render(game_t* game) {
+
+	drawqueue.drawc = 0;
+
+	// if (drawqueue.drawv == NULL) {
+	// 	drawqueue.drawalloc = 10;
+	// 	drawqueue.drawv = xmalloc(drawqueue.drawalloc * sizeof(drawqueueitem_t));
+	// }
 	
 	pthread_mutex_lock(&resizemutex);
-	// int width = game->context->width;
-	// int height = game->context->height;
-	
+	camera = *game->camera;
 	profilerstartframe();
 
 	context_t context = *(game->context);
@@ -132,8 +143,6 @@ render(game_t* game) {
 	int y = 0;
 	int x = 0;
 
-	
-
 	double yCenter = game->context->height / 2;
 
 	if (game->drawfloor) {
@@ -143,8 +152,6 @@ render(game_t* game) {
 			if (yd < 0) {
 				zd = (4 - zCam * 8) / -yd;
 			}
-
-			
 
 			for (x = 0; x < game->context->width; x++) {
 				double xd = (x - game->context->width / 2.0) / game->context->height;
@@ -173,50 +180,51 @@ render(game_t* game) {
 				if (tilex < 0 || tilex > level.width + 1) continue;
 				if (tiley < 0 || tiley > level.height + 1) continue;
 
-				// if (y < yCenter) color = 0;
-				// printf("here\n");
 				display.pixels[x + y * game->context->width] = color;
 			}
 		}
 	}
 
-	
 
-	#ifdef __RENDER_WALLS__
 	if (game->drawwalls) {
 		int xb = 0;
 		int yb = 0;
 		int xCenter = (int)floor(xCam);
-		int zCenter = -(int)floor(yCam);
+		int zCenter = (int)floor(yCam);
 		for (xb = xCenter - game->renderdist; xb <= xCenter + game->renderdist; xb++) {
 			for (yb = zCenter - game->renderdist; yb <= zCenter + game->renderdist; yb++) {
-				uint32_t c = getblock(level, xb, -yb);
+				uint32_t c = getblock(level, xb, yb);
+				int xx = xb;
+				int yy = yb - 1;
+				
 				if (c == 0xffffff) {
 					// WEST
-					if (getblock(level, xb - 1, -yb) == 0) {
-						renderwall(&display, camera, xb, yb, xb, yb + 1, c);
+					if (getblock(level, xb - 1, yb) == 0) {
+						renderwall(&display, camera, xx, yy + 1, xx, yy, c);
 					}
+
 					// EAST
-					if (getblock(level, xb + 1, -yb) == 0) {
-						renderwall(&display, camera, xb + 1, yb + 1, xb + 1, yb, c);
+					if (getblock(level, xb + 1, yb) == 0) {
+						renderwall(&display, camera, xx + 1, yy, xx + 1, yy + 1, c);
 					}
+					
+					
+
 					// NORTH
-					if (getblock(level, xb, -yb + 1) == 0) {
-						renderwall(&display, camera, xb + 1, yb, xb, yb, c);
+					if (getblock(level, xb, yb + 1) == 0) {
+						renderwall(&display, camera, xx + 1, yy + 1, xx, yy + 1, c);
 					}
 					// SOUTH
-					if (getblock(level, xb, -yb - 1) == 0) {
-						renderwall(&display, camera, xb, yb + 1, xb + 1, yb + 1, c);
+					if (getblock(level, xb, yb - 1) == 0) {
+						renderwall(&display, camera, xx, yy, xx + 1, yy, c);
 					}
 				}
 			}
 		}
 	}
-	renderwall(&display, camera, 3, 3, 5, 5, 0xffffff);
-	#endif
-
 
 	scriptdrawworld(game);
+	renderfromqueue(game);
 
 	// renderSprite(display, game, zBuffer, 4, 4, 0, 16, 16);	
 
@@ -224,7 +232,7 @@ render(game_t* game) {
 	if (game->drawfog) {
 		int fogdist = (int) (game->fogdist * 7);
 		if (fogdist < 1) fogdist = 1;
-		int ditherfactor = 0;
+		int ditherfactor = 4;
 		for (int i = 0; i < game->context->width * game->context->height; i++) {
 			int xp = (i % game->context->width);
 			int yp = (i / game->context->width) * 14;
@@ -232,7 +240,10 @@ render(game_t* game) {
 			double xx = ((i % game->context->width - game->context->width / 2.0) / game->context->width);
 			int col = display.pixels[i];
 			int brightness = (int) (fogdist - zl * 6 * (xx * xx * 2 + 1));
-			brightness = (brightness + ((xp + yp) & 2) * ditherfactor) >> 4 << 4;
+			brightness = (brightness + ((xp + yp) & 2) * ditherfactor);
+			if (ditherfactor > 0) {
+				brightness = brightness >> 4 << 4;
+			}
 			if (brightness < 0) brightness = 0;
 			if (brightness > fogdist) brightness = fogdist;
 			int r = (col >> 16) & 0xff;
@@ -273,41 +284,34 @@ render(game_t* game) {
 	// 	}
 	// }
 
-	// #ifdef __RENDER_DEBUG_INFO__
-	// gprintf(display, 3,  8, "Dir: %s", directions[dir]);
-	// gprintf(display, 3, 16, "       x   y");
-	// gprintf(display, 3, 26, "Tile: %2d, %2d", (int)floor(camera->x), (int)floor(camera->y));
-	// gprintf(display, 3, 36, "frames: %d", game->frames);
-	// #endif /* __RENDER_DEBUG_INFO__ */
-
 	// for (int i = 0; i < width * height; i++) display.pixels[i] = getcolor(100 - zBuffer[i], 100 - zBuffer[i], 100 - zBuffer[i]);
 	if (game->drawprofiler == true) {
 		
 		int h;
-		int profilercenter = game->context->height / 4;
+		int profilercenter = game->context->height / 2;
 
-		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter - FONT_CHAR_H - 2, "Logic");
-		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter + FONT_CHAR_H - 5, "Render");
+		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter - FONT_CHAR_H - 2, "Logic (%dtps)", game->tps);
+		gprintf(display, PROFILER_LOG_DEPTH + 3, profilercenter + FONT_CHAR_H - 5, "Render (%dfps)", game->fps);
 
-		gprintf(display, 4, game->context->width/2, "(%f, %f)", game->camera->x, game->camera->y);
-
-		
 		for (int x = 0; x < PROFILER_LOG_DEPTH; x++) {
-			h = (int) (ticktiminghistory[x] * 50000);
+			h = (int) (ticktiminghistory[x] * 100);
+			int bad = ticktiminghistory[x] / 100 > (1000.0 / 60.0);
+			int c = bad ? 0x55ff00 : 0x00ff00;
 			for (int y = 0; y < h; y++) {
 				int xx = PROFILER_LOG_DEPTH - x;
 				int yy = profilercenter - y - 1;
-				int c = h > 16 ? 0xff0000 : 0x00ff00;
 				int color = lerpcolor(c, getpixel(display, xx, yy), 0.5);
 				setpixel(display, xx, yy, color);
 			}
 
-			h = (int) (frametiminghistory[x] * 2000);
+			h = (int) (frametiminghistory[x]);
+			bad = frametiminghistory[x] * 100 > (1000.0 / 60.0);
 			for (int y = 0; y < h; y++) {
 				int xx = PROFILER_LOG_DEPTH - x;
 				int yy = y;
 				yy += profilercenter;
-				int color = lerpcolor(0xD59F61, getpixel(display, xx, yy), 0.5);
+				int c = bad ? 0xDf9F61 : 0xD59F61;
+				int color = lerpcolor(c, getpixel(display, xx, yy), 0.5);
 				setpixel(display, xx, yy, color);
 			}
 		}
@@ -317,7 +321,6 @@ render(game_t* game) {
 
 	present(context);
 	unlock(context, display);
-	
 
 	profilerendframe();
 	pthread_mutex_unlock(&resizemutex);
@@ -339,7 +342,6 @@ render(game_t* game) {
  * This function takes a display, zBuffers, a camera reference, and locations
  * The order of locations are important as they determine the side of the wall to draw textures to
  */
-#ifdef __RENDER_WALLS__
 static inline void
 renderwall (display_t *d, camera_t *cam, double x0, double y0, double x1, double y1, uint32_t c) {
 
@@ -372,11 +374,11 @@ renderwall (display_t *d, camera_t *cam, double x0, double y0, double x1, double
 	 * The accessing and order is strange because in graphics
 	 * Z is not up and down, 
 	 */
-	double xCam = cam->x - 0.5;
-	double yCam = -cam->y + 0.5;
-	double zCam = -cam->z;
-	double rCos = -cos(cam->rot);
-	double rSin = sin(cam->rot);
+	double xCam = camera.x - 0.5;
+	double yCam = -camera.y + 0.5;
+	double zCam = -camera.z;
+	double rCos = -cos(camera.rot);
+	double rSin = sin(camera.rot);
 
 
 	// Get the center of the screen for future use
@@ -574,7 +576,49 @@ renderwall (display_t *d, camera_t *cam, double x0, double y0, double x1, double
 		}
 	}
 }
-#endif /* __RENDER_WALLS__*/
+
+
+
+
+
+void
+drawqueuepush(drawqueueitem_t item) {
+	
+	if (drawqueue.drawc + 1 > drawqueue.drawalloc) {
+		drawqueue.drawalloc += 10;
+		drawqueue.drawv = realloc(drawqueue.drawv, drawqueue.drawalloc * sizeof(drawqueueitem_t));
+	}
+	int i = drawqueue.drawc++;
+	drawqueue.drawv[i] = item;
+}
+
+
+
+int
+renderfromqueue(game_t* game) {
+	int count = 0;
+	if (drawqueue.drawc > drawqueue.drawalloc)
+		drawqueue.drawc = drawqueue.drawalloc;
+	for (int i = 0; i < drawqueue.drawc; i++) {
+		drawqueueitem_t call = drawqueue.drawv[i];
+		switch (call.type) {
+			case DRAW_TYPE_WALL:
+				break;
+			case DRAW_TYPE_SPRITE:
+				renderSprite(*globaldisplay, game,
+							call.instr.sprite.x,
+							call.instr.sprite.y,
+							call.instr.sprite.z,
+							call.instr.sprite.texx,
+							call.instr.sprite.texy);
+				break;
+		}
+	}
+	drawqueue.drawc = 0;
+	return count;
+}
+
+
 
 
 
@@ -693,10 +737,12 @@ lock(context_t context) {
 	display.width = pitch / (int) sizeof(uint32_t);
 	display.height = context.height;
 	// printf("%d, %d\n", display.width, display.height);
-	display.zBuffer = (unsigned*)xcalloc(display.width * display.height, 4);
-	display.zBufferWall = (unsigned*)xcalloc(display.width, 4);
+	display.zBuffer = (double*) xcalloc(display.width * display.height, sizeof(double));
+	display.zBufferWall = (double*) xcalloc(display.width, sizeof(double));
 	return display;
 }
+
+
 
 
 
@@ -744,9 +790,18 @@ int l_rendersprite(lua_State* L) {
 	double y = (double)lua_tonumber(L, -4);
 	// printf("%f\t", y);
 	double x = (double)lua_tonumber(L, -5);
-	// printf("%f\n", x);
-	renderSprite(*globaldisplay, globalgame, x, y, z, texx, texy);
-	return 0;
+
+	drawqueueitem_t item = {};
+	item.type = DRAW_TYPE_SPRITE;
+	item.instr.sprite.x = x;
+	item.instr.sprite.y = y;
+	item.instr.sprite.z = z;
+	item.instr.sprite.texx = texx;
+	item.instr.sprite.texy = texy;
+
+	drawqueuepush(item);
+
+	return 1;
 }
 
 
@@ -755,11 +810,18 @@ int l_rendersprite(lua_State* L) {
 
 void
 renderSprite(display_t d, game_t* game, double x, double y, double z, int texx, int texy) {
-	double xCam = game->camera->x;
-	double zCam = -game->camera->y;
-	double yCam = -game->camera->z;
-	double rCos = -cos(game->camera->rot);
-	double rSin = sin(game->camera->rot);
+	double xCam = camera.x;
+	double zCam = -camera.y;
+	double yCam = -camera.z;
+	double rCos = -cos(camera.rot);
+	double rSin = sin(camera.rot);
+
+	double maxrenderdist = 10;
+
+	double xdist = (xCam - x) * (xCam - x);
+	double ydist = (zCam + y) * (zCam + y);
+	double distsqr = xdist + ydist;
+	if (distsqr > maxrenderdist * maxrenderdist) return;
 
 
 	double xc = (x - xCam) * 2 - rSin * 0.2;
@@ -787,10 +849,10 @@ renderSprite(display_t d, game_t* game, double x, double y, double z, int texx, 
 	double yPixel0 = yPixel - d.height / zz;
 	double yPixel1 = yPixel + d.height / zz;
 
-	int xp0 = (int) ceil(xPixel0);
-	int xp1 = (int) ceil(xPixel1);
-	int yp0 = (int) ceil(yPixel0);
-	int yp1 = (int) ceil(yPixel1);
+	int xp0 = (int) round(xPixel0);
+	int xp1 = (int) round(xPixel1);
+	int yp0 = (int) round(yPixel0);
+	int yp1 = (int) round(yPixel1);
 
 	if (xp0 < 0)
 		xp0 = 0;

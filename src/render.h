@@ -6,11 +6,48 @@
 #include "art.h"
 #include "level.h"
 #include "game.h"
+
+#include <math.h>
 #include <stdint.h>
 
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
+
+
+#define DRAW_TYPE_WALL     0
+#define DRAW_TYPE_SPRITE   1
+
+
+typedef struct {
+	double x0;
+	double y0;
+	double x1;
+	double y1;
+	uint32_t c;
+} wallinstr_t;
+
+typedef struct {
+	double x;
+	double y;
+	double z;
+	int texx;
+	int texy;
+} spriteinstr_t;
+
+typedef struct {
+	int type;
+	union {
+		wallinstr_t wall;
+		spriteinstr_t sprite;
+	} instr;
+} drawqueueitem_t;
+
+typedef struct {
+	int drawalloc;
+	int drawc;
+	drawqueueitem_t* drawv;
+} drawqueue_t;
 
 
 void setpixel(display_t d, int x, int y, unsigned color);
@@ -33,6 +70,9 @@ void renderSprite(display_t d, game_t* game, double x, double y, double z, int t
 unsigned getcolor(unsigned char r, unsigned char g, unsigned char b);
 unsigned getpixel(display_t d, int x, int y);
 float lerp(int v1, int v2, float alpha);
+
+void drawqueuepush(drawqueueitem_t item);
+int renderfromqueue(game_t* game);
 
 // LUA BINDINGS
 int l_setpixel(lua_State* L);

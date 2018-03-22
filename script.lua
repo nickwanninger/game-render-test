@@ -7,9 +7,9 @@ ticks = 0
 
 
 function init()
-	game.drawwalls = false
+	-- game.drawwalls = false
 	-- game.drawfloor = false
-	game.drawfog = false
+	-- game.drawfog = false
 	-- game.fogdist = 100
 	
 end
@@ -28,7 +28,7 @@ function math.sign(x)
 	end
 end
 
-function preupdate()
+function update()
 	handlecamerainput()
 end
 
@@ -36,17 +36,11 @@ end
 
 
 function drawworld()
-	rCos = math.cos(camera.rot)
-	rSin = -math.sin(camera.rot)
-
-	dx = 0
-	dy = 3
-
-	xx = (dx * rCos - dy * rSin)
-	yy =  (dy * rCos + dx * rSin)
-
-	-- rendersprite(xx + camera.x, yy + camera.y, 0, 16, 16);
-	rendersprite(3.5, 4.5, 0, 16, 16);
+	for x = 1, 6 do
+		for y = 1, 6 do
+			rendersprite(x + 0.5, y + 0.5, 0, 16, 0);
+		end
+	end
 end
 
 

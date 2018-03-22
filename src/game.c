@@ -7,6 +7,7 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <math.h>
+#include <SDL2/SDL.h>
 
 #include "input.h"
 #include "render.h"
@@ -29,7 +30,7 @@ game_t* globalgame;
 
 game_t*
 gameinit(char* levelname) {
-	
+
 	float scale = 4;
 	int width = 270;
 	int height = 190;
@@ -80,6 +81,7 @@ gameinit(char* levelname) {
 	game->renderdist = 15;
 
 	game->frames = 0;
+	game->ticks = 0;
 	game->fogdist = 40.0;
 
 	game->console = initconsole();
@@ -197,9 +199,6 @@ luainject(game_t* game) {
 int t = 0;
 void
 gameupdate(game_t* game) {
-	t++;
-
-	// if (t % 5 == 0) contextresize(game->context, game->context->width, (int)((sin(t / 100.0) + 1) * 50 + 10), game->context->scale);
 	handleinput(game);
 }
 
@@ -221,12 +220,18 @@ utime() {
 void*
 gamerenderthread(void *arg) {
 	game_t* game = (game_t*) arg;
+
+	uint64_t dt = SDL_GetPerformanceFrequency();
+
+	uint64_t t0, t1;
+	int fts = 0; // Frames this second
 	while (1) {
-
-
-		render(game);
-		// usleep(100000);
 		game->frames++;
+		fts++;
+		t0 = SDL_GetPerformanceCounter();
+		render(game);
+		t1 = SDL_GetPerformanceCounter();
+		if (game->frames % 20 == 0) game->fps = dt / (t1 - t0);
 	}
 	pthread_exit(0);
 	return 0;
@@ -239,6 +244,10 @@ gamerenderthread(void *arg) {
 void*
 gamelogicthread(void* arg) {
 	game_t* game = (game_t*) arg;
+
+	uint64_t dt = SDL_GetPerformanceFrequency();
+	uint64_t t0, t1;
+
 	while(1) {
 		profilerstarttick();
 		pthread_mutex_lock(&mutex);
@@ -249,6 +258,10 @@ gamelogicthread(void* arg) {
 		game->frames++;
 		#endif
 
+		game->ticks++;
+
+		t0 = SDL_GetPerformanceCounter();
+
 
 		scriptpreupdate(game);
 
@@ -256,16 +269,23 @@ gamelogicthread(void* arg) {
 
 		scriptupdate(game);
 
+		
 
-		usleep(100);
-		profilerendtick();
+
+		
 
 		// scriptlateupdate(game);
 		usleep(microsecondsintick);
+		
+		t1 = SDL_GetPerformanceCounter();
+		if (game->ticks % 20 == 0) game->tps = dt / (t1 - t0);
+
+		
 
 		
 
 		pthread_mutex_unlock(&mutex);
+		profilerendtick();
 		
 	}
 }
