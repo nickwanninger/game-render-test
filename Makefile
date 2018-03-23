@@ -1,17 +1,18 @@
 CC = gcc
 WARNINGS = -Wall -Wformat -Wno-deprecated-declarations
-CFLAGS =  -I./include -O3 -g
-LDLIBS = -lSDL2 -lm -lpthread -llua -lGLEW
+CFLAGS = -I./include -O3 -g
+LDLIBS = -lm -lpthread
 version = 0.2.0
 
 
 UNAME_S := $(shell uname -s)
 
 ifeq ($(UNAME_S),Linux)
-	LDLIBS += -D LINUX
+	CFLAGS += -I/usr/include/lua5.3 `sdl2-config --libs --cflags`
+	LDLIBS += -llua5.3 -lSDL2 -lglut -lGL -lGLU -lGLEW
 endif
 ifeq ($(UNAME_S),Darwin)
-	LDLIBS += -framework OpenGL
+	LDLIBS += -framework OpenGL -llua -lGLEW -lSDL2
 endif
 
 
@@ -36,14 +37,14 @@ $(OBJDIR):
 	@mkdir -p $@
 
 $(OBJDIR)/%.o: $(addprefix $(SRCDIR)/,%.c)
-	@echo "Compiling    \x1B[92m$@\x1B[0m \x1B[2m<- $<\x1B[0m"
+	@printf "Compiling    \x1B[92m$@\x1B[0m \x1B[2m<- $<\x1B[0m\n"
 	@mkdir -p $(dir $@)
 	@$(CC) $(WARNINGS) $(CFLAGS) -c $< -o $@
 
 $(exe):  $(OBJFILES)
-	@echo "Linking      \x1B[93m$@\x1B[0m \x1B[2m<- $(OBJDIR)/*\x1B[0m "
-	@$(CC) $(WARNINGS) $(LDLIBS) -o $@ $(foreach i,$^,$(i) )
-	@echo "\x1B[93mCompiled     v$(version)\x1B[0m for $(UNAME_S)"
+	@printf "Linking      \x1B[93m$@\x1B[0m \x1B[2m<- $(OBJDIR)/*\x1B[0m \n"
+	@$(CC) $(WARNINGS) -o $@ $(foreach i,$^,$(i) ) $(LDLIBS) 
+	@printf "\x1B[93mCompiled     v$(version)\x1B[0m for $(UNAME_S)\\n"
 
 clean:
 	@rm -rf $(exe)

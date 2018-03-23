@@ -14,6 +14,11 @@
 	#include <openGL/GLU.h>
 #endif
 
+#ifdef __LINUX__
+	#include <GL/gl.h>
+	#include <GL/glu.h>
+#endif
+
 #ifdef __WINDOWS__
 	// Windows Compilation specific things here.
 	#include <gl/gl.h>
