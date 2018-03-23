@@ -6,7 +6,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <string.h>
-#include <lua.h>
+#include "lua/lua.h"
 #include <lualib.h>
 #include <lauxlib.h>
 #include <math.h>

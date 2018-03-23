@@ -149,8 +149,9 @@ render(game_t* game) {
 				int zz = zb;
 
 				if (c == 0x000000) {
-					renderfloortile(xb, zb, 1);
+					
 				}
+				renderfloortile(xx, zz, 1);
 				
 				if (c == 0xffffff) {
 					// WEST

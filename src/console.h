@@ -16,7 +16,7 @@ typedef struct {
 } console_t;
 
 
-#include <lua.h>
+#include "lua/lua.h"
 #include <lualib.h>
 #include <lauxlib.h>
 

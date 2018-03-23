@@ -9,7 +9,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <lua.h>
+#include "lua/lua.h"
 #include <lualib.h>
 #include <lauxlib.h>
 
