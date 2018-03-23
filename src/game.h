@@ -10,8 +10,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "lua/lua.h"
-#include <lualib.h>
-#include <lauxlib.h>
+#include "lua/lualib.h"
+#include "lua/lauxlib.h"
 
 
 typedef struct {

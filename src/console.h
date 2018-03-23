@@ -17,8 +17,8 @@ typedef struct {
 
 
 #include "lua/lua.h"
-#include <lualib.h>
-#include <lauxlib.h>
+#include "lua/lualib.h"
+#include "lua/lauxlib.h"
 
 console_t* initconsole();
 int consoletoggle(console_t* console);
