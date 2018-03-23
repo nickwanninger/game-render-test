@@ -1,3 +1,6 @@
+#include "gl/gllib.h"
+#include "gl/window.h"
+#include "gl/context.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -8,18 +11,17 @@
 #include <lauxlib.h>
 #include <math.h>
 #include <SDL2/SDL.h>
-
+#include "bitmap.h"
 #include "input.h"
 #include "render.h"
 #include "script.h"
 #include "profiler.h"
 #include "util.h"
 #include "lautoc.h"
+#include "shader.h"
+#include "3d/object.h"
 
 
-
-
-// #define __SINGLE_THREADED_RENDERING__
 
 int microsecondsinsecond = 1000000;
 float microsecondsintick = 1000000 / 60.0;
@@ -31,21 +33,15 @@ game_t* globalgame;
 game_t*
 gameinit(char* levelname) {
 
-	float scale = 4;
-	int width = 270;
-	int height = 190;
-
 	SDL_StartTextInput();
 	
 	char* scriptname = "script.lua";
 
 	game_t* game = xmalloc(sizeof(game_t));
-	
 
 	// Setup the lua env
 	game->lua = luaL_newstate();
-	
-	
+
 	// Load the libraries into lua
 	luaL_openlibs(game->lua);
 
@@ -69,26 +65,18 @@ gameinit(char* levelname) {
 		}
 	}
 
-
 	game->drawfloor = true;
 	game->drawwalls = true;
 	game->drawitem = true;
 	game->drawfog = true;
 	game->luarunning = false;
 	game->drawprofiler = false;
-
-	
 	game->renderdist = 15;
-
 	game->frames = 0;
 	game->ticks = 0;
 	game->fogdist = 40.0;
-
 	game->console = initconsole();
-
-
 	game->level = lopen(levelname);
-	game->context = contextinit(width, height, scale);
 	game->camera = camerainit(game->level);
 	globalgame = game;
 	return game;
@@ -102,8 +90,6 @@ int gamedone() {
 	SDL_Event event;
 	return event.type == SDL_QUIT || event.key.keysym.sym == SDLK_ESCAPE;
 }
-
-
 
 
 int
@@ -163,7 +149,8 @@ luainject(game_t* game) {
 	luaA_struct_member(L, camera_t, x, double);
 	luaA_struct_member(L, camera_t, y, double);
 	luaA_struct_member(L, camera_t, z, double);
-	luaA_struct_member(L, camera_t, rot, double);
+	luaA_struct_member(L, camera_t, rotx, double);
+	luaA_struct_member(L, camera_t, roty, double);
 
 	lua_register(L, "camera_index", camera_index);
 	lua_register(L, "camera_newindex", camera_newindex);
@@ -188,8 +175,6 @@ luainject(game_t* game) {
 	lua_register(L, "getblock", lgetblock);
 
 
-	lua_register(L, "setpixel", l_setpixel);
-	lua_register(L, "getpixel", l_getpixel);
 	lua_register(L, "rendersprite", l_rendersprite);
 }
 
@@ -206,20 +191,25 @@ gameupdate(game_t* game) {
 
 
 
-unsigned long
-utime() {
-	struct timeval tv;
-	// gettimeofday(&tv,NULL);
-	return tv.tv_usec;
-}
-
-
-
-
-
 void*
 gamerenderthread(void *arg) {
+
 	game_t* game = (game_t*) arg;
+	windowinit();
+	contextinit();
+	
+	if(!initGL()) {
+		printf( "Unable to initialize OpenGL!\n" );
+		return 0;
+	}
+	printf("Initialized!\n");
+	printf("Texture: %u\n", gloadtexture("assets/floor.bmp"));
+	printf("Texture: %u\n", gloadtexture("assets/wall.bmp"));
+
+
+	unsigned int shader = openshader("shader.vert", "shader.frag");
+	printf("%d\n", shader);
+	glUseProgram(shader);
 
 	uint64_t dt = SDL_GetPerformanceFrequency();
 
@@ -241,6 +231,8 @@ gamerenderthread(void *arg) {
 
 
 
+
+
 void*
 gamelogicthread(void* arg) {
 	game_t* game = (game_t*) arg;
@@ -252,37 +244,22 @@ gamelogicthread(void* arg) {
 		profilerstarttick();
 		pthread_mutex_lock(&mutex);
 
-		// scriptearlyupdate(game);
-		#ifdef __SINGLE_THREADED_RENDERING__
-		render(game);
-		game->frames++;
-		#endif
+
 
 		game->ticks++;
 
 		t0 = SDL_GetPerformanceCounter();
-
-
 		scriptpreupdate(game);
 
 		gameupdate(game);
 
 		scriptupdate(game);
 
-		
-
-
-		
-
-		// scriptlateupdate(game);
 		usleep(microsecondsintick);
-		
+
 		t1 = SDL_GetPerformanceCounter();
 		if (game->ticks % 20 == 0) game->tps = dt / (t1 - t0);
 
-		
-
-		
 
 		pthread_mutex_unlock(&mutex);
 		profilerendtick();
@@ -304,14 +281,15 @@ gamestart(game_t* game) {
 
 	pthread_t logicthread;
 	pthread_create(&logicthread, NULL, gamelogicthread, game);
-	#ifndef __SINGLE_THREADED_RENDERING__
+	
 	// Create the render thread.
 	pthread_t renderthread;
 	pthread_create(&renderthread, NULL, gamerenderthread, game);
-	#endif
-
+	
 	// Loop and handle user input and ticking till the user wants to quit.
 	inputEventWatcher(game);
+
+	
 	exit(1);
 }
 

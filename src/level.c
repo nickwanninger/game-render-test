@@ -1,5 +1,5 @@
 #include "level.h"
-#include "art.h"
+#include "bitmap.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -26,7 +26,7 @@ getblock(level_t l, int y, int x) {
 // Open a level file.
 level_t*
 lopen(char* filename) {
-	graphic_t *data = gopen(filename);
+	bitmap_t* data = gopen(filename);
 	
 	int width = data->width;
 	int height = data->height;

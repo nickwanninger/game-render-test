@@ -1,3 +1,5 @@
+#include "gl/window.h"
+
 #include "input.h"
 #include "level.h"
 #include "camera.h"
@@ -8,9 +10,13 @@
 #include <math.h>
 #include "script.h"
 #include "console.h"
-#include "context.h"
 
 #define __HANDLE_COLLISIONS__
+
+
+extern int window_width;
+extern int window_height;
+
 
 #define SIGN(x) (x >= 0 ? 1 : -1)
 int consoletogglecooldown = 0;
@@ -20,47 +26,38 @@ const uint8_t* keystate;
 void
 inputEventWatcher(game_t* game) {
 	SDL_StartTextInput();
+	// SDL_SetRelativeMouseMode(SDL_TRUE);
 	SDL_Event event;
 	char entered;
 	while (1) {
 		game->keystate = (uint8_t *) SDL_GetKeyboardState(NULL);
 		while (SDL_WaitEvent(&event)) {
+
+
+			if (event.type == SDL_WINDOWEVENT) {
+				switch (event.window.event) {
+					case SDL_WINDOWEVENT_RESIZED:
+						printf("resize\n");
+						window_width = event.window.data1;
+						window_height = event.window.data2;
+						
+						break;
+				}
+			}
+
+
 			
 			switch (event.type) {
-				case SDL_DROPFILE:
-					printf("File Dropped: %s\n", event.drop.file);
-					break;
-				case SDL_MOUSEMOTION:
-					// printf("(%d, %d)\n", event.motion.x, event.motion.y);
-					break;
+				// case SDL_MOUSEMOTION:
+				// 	game->camera->roty += event.motion.xrel / 180.0;
+				// 	game->camera->rotx += event.motion.yrel / (180.0 * 2);
+				// 	break;
 				case SDL_MOUSEWHEEL:
 					// printf("Scroll: %d\n", event.wheel.y);
 					break;
 				case SDL_QUIT:
 					printf("Quitting...\n");
 					exit(0);
-				case SDL_KEYDOWN:
-					scriptonkeydown(game, event.key.keysym.scancode);
-
-
-
-					
-					// if (game->console->active) {
-						
-					if (event.key.keysym.sym == SDLK_BACKSPACE) {
-						contextresize(game->context, 1920 / 3, 1080 / 3, 2);
-					}
-					// 	// Clear with ctrl+c
-					// 	if (event.key.keysym.sym == SDLK_c && SDL_GetModState() & KMOD_CTRL) {
-					// 		consoleinputclear(game->console);
-					// 	}
-
-					// 	if (event.key.keysym.sym == SDLK_RETURN) {
-					// 		consoleinputeval(game->console, game->lua);
-					// 	}
-					// 	// if (keystate[SDL_SCANCODE_RETURN]) 
-					// }
-					break;
 				case SDL_TEXTINPUT:
 					entered = event.text.text[0];
 					if (entered == '`') {
@@ -79,7 +76,6 @@ inputEventWatcher(game_t* game) {
 void
 handleinput(game_t* game) {
 
-	// camera_t* camera = game->camera;
 	if (game->keystate[SDL_SCANCODE_ESCAPE]) exit(0);
 
 

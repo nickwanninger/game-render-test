@@ -1,7 +1,7 @@
 CC = gcc
 WARNINGS = -Wall -Wformat -Wno-deprecated-declarations
 CFLAGS =  -I./include -O3 -g
-LDLIBS = -lSDL2 -lm -lpthread -llua -framework OpenGL
+LDLIBS = -lSDL2 -lm -lpthread -llua -framework OpenGL -lGLEW
 version = 0.0.4
 
 objs = $(srcs:.c=.o)

@@ -1,8 +1,9 @@
 ax = 0
-ay = 0
+az = 0
 xm = 0
-ym = 0
-rota = 0
+zm = 0
+rotya = 0
+rotxa = 0
 speed = 0
 
 
@@ -16,22 +17,26 @@ walkspeed = 0.1 / 3.5
 
 
 function handlecamerainput()
-	rotspeed = 0.04
+	yrotspeed = 0.04
+	xrotspeed = 0.02
 	movespeed = walkspeed
 
 	xm = 0
-	ym = 0
+	zm = 0
 
-	if keys.W then ym = ym - 1 end
-	if keys.S then ym = ym + 1 end
-	if keys.D then xm = xm - 1 end
-	if keys.A then xm = xm + 1 end
+	if keys.W then zm = zm + 1 end
+	if keys.S then zm = zm - 1 end
+	if keys.D then xm = xm + 1 end
+	if keys.A then xm = xm - 1 end
 	if keys.LSHIFT then movespeed = movespeed * 2 end
 
-	if keys.RIGHT then rota = rota + rotspeed end
-	if keys.LEFT then rota = rota - rotspeed end
+	if keys.RIGHT then camera.roty = camera.roty + yrotspeed end
+	if keys.LEFT then camera.roty = camera.roty - yrotspeed end
 
-	dd = xm * xm + ym * ym
+	if keys.UP then camera.rotx = camera.rotx - xrotspeed end
+	if keys.DOWN then camera.rotx = camera.rotx + xrotspeed end
+
+	dd = xm * xm + zm * zm
 	if dd > 0 then
 		dd = math.sqrt(dd)
 	else
@@ -39,52 +44,65 @@ function handlecamerainput()
 	end
 
 	xm = xm / dd
-	ym = ym / dd
+	zm = zm / dd
 
 	headturnBob = headturnBob * 0.8
-	headturnBob = headturnBob + rota
+	headturnBob = headturnBob + rotya
 
 	headbob = headbob * 0.6
-	mmagnitude = math.sqrt(xm * xm + ym * ym)
+	mmagnitude = math.sqrt(xm * xm + zm * zm)
 	headbob = headbob + mmagnitude
 	headbobPhase = headbobPhase + mmagnitude
 
-	rCos = math.cos(camera.rot)
-	rSin = math.sin(camera.rot)
+	rCos = math.cos(camera.roty)
+	rSin = math.sin(camera.roty)
 
-	ax = ax - (xm * rCos + ym * rSin) * movespeed
-	ay = ay - (ym * rCos - xm * rSin) * movespeed
+	ax = ax + (xm * rCos + zm * rSin) * movespeed
+	az = az + (zm * rCos - xm * rSin) * movespeed
 
 	-- Collisions here
 	tx = math.floor(camera.x);
-	ty = math.floor(camera.y);
+	ty = math.floor(camera.z);
 	r = 0.1
 
 	newtx = math.floor(camera.x + ax + r * math.sign(ax))
-	newty = math.floor(camera.y + ay + r * math.sign(ay))
+	newty = math.floor(camera.z + az + r * math.sign(az))
 	xb = getblock(newtx, ty)
 	yb = getblock(tx, newty)
 	if xb ~= 0 and xb ~= 0x00ff00 then
 		ax = 0;
 	end
 	if yb ~= 0 and yb ~= 0x00ff00 then
-		ay = 0;
+		az = 0;
 	end
 
-	speed = math.sqrt(ax * ax + ay * ay)
+	speed = math.sqrt(ax * ax + az * az)
+	
 	camera.x = camera.x + ax
-	camera.y = camera.y + ay
+	camera.z = camera.z + az
 	-- math.sin(game.frames / 40) / 2
-	camera.z = 0.2 + math.sin(headbobPhase * 0.4) * 0.01 * headbob;
+	camera.y = 0.6 + math.sin(headbobPhase * 0.4) * 0.01 * headbob;
+
+
+	-- print(camera.x, camera.z)
 
 	-- apply friction to acceleration
 	ax = ax * 0.6;
-	ay = ay * 0.6;
+	az = az * 0.6;
 
 	-- Turn the camera
-	camera.rot = camera.rot + rota;
-	rota = rota * 0.4;
+	camera.roty = camera.roty + rotya;
+	-- camera.rotx = 45.0
+	rotya = rotya * 0.4;
 
-	if camera.rot > math.pi * 2 then camera.rot = 0 end
-	if camera.rot < 0 then camera.rot = camera.rot + math.pi * 2 end
+	camera.rotx = camera.rotx + rotxa;
+	-- camera.rotx = 45.0
+	rotxa = rotxa * 0.4;
+
+	-- Clamp up and down rotation
+	if camera.rotx > 1.25 then camera.rotx = 1.25 end
+	if camera.rotx < -1.25 then camera.rotx = -1.25 end
+
+	if camera.roty > math.pi * 2 then camera.roty = 0 end
+	if camera.roty < 0 then camera.roty = camera.roty + math.pi * 2 end
 end

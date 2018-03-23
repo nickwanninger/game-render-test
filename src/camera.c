@@ -11,8 +11,8 @@ camera_t*
 camerainit(level_t* level) {
 	camera_t* p = calloc(sizeof(camera_t), 1);
 	p->x = level->pspawn.x;
-	p->y = level->pspawn.y;
-	p->z = 0;
+	p->y = 0;
+	p->z = level->pspawn.y;
 	return p;
 }
 

@@ -1,6 +1,7 @@
 #ifndef __ART__
 #define __ART__
 
+#include <stdint.h>
 
 typedef struct {
 	uint32_t* pixels;
@@ -14,11 +15,13 @@ typedef struct {
 	unsigned char* pixels;
 	unsigned width;
 	unsigned height;
-} graphic_t;
+} bitmap_t;
 
 
 void ginit(void);
-graphic_t* gopen(char* filename);
-unsigned gpixel(graphic_t* g, int x, int y);
+bitmap_t* gopen(char* filename);
+unsigned gpixel(bitmap_t* g, int x, int y);
+
+uint32_t gloadtexture(char* filename);
 
 #endif

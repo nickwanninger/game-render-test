@@ -8,7 +8,8 @@ typedef struct {
 	double x;
 	double y;
 	double z;
-	double rot;
+	double roty;
+	double rotx;
 
 	// double ax;
 	// double vx;

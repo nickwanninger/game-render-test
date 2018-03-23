@@ -1,7 +1,6 @@
 #ifndef __GAME__
 #define __GAME__
 
-#include "context.h"
 #include "camera.h"
 #include "level.h"
 #include "console.h"
@@ -16,7 +15,6 @@
 
 
 typedef struct {
-	context_t* context;
 	camera_t* camera;
 	level_t* level;
 	console_t* console;

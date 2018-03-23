@@ -11,11 +11,8 @@ function init()
 	-- game.drawfloor = false
 	-- game.drawfog = false
 	-- game.fogdist = 100
+	game.renderdist = 10;
 	
-end
-
-function update()
--- print("("..camera.x..", "..camera.y..")")
 end
 
 function math.sign(x)
@@ -36,11 +33,11 @@ end
 
 
 function drawworld()
-	for x = 1, 6 do
-		for y = 1, 6 do
-			rendersprite(x + 0.5, y + 0.5, 0, 16, 0);
-		end
-	end
+	-- for x = 1, 6 do
+	-- 	for y = 1, 6 do
+	-- 		rendersprite(x + 0.5, y + 0.5, 0, 16, 0);
+	-- 	end
+	-- end
 end
 
 
