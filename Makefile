@@ -37,14 +37,14 @@ $(OBJDIR):
 	@mkdir -p $@
 
 $(OBJDIR)/%.o: $(addprefix $(SRCDIR)/,%.c)
-	@printf "Compiling    \x1B[92m$@\x1B[0m \x1B[2m<- $<\x1B[0m\n"
+	@printf "Compiling    $@ <- $<\n"
 	@mkdir -p $(dir $@)
 	@$(CC) $(WARNINGS) $(CFLAGS) -c $< -o $@
 
 $(exe):  $(OBJFILES)
-	@printf "Linking      \x1B[93m$@\x1B[0m \x1B[2m<- $(OBJDIR)/*\x1B[0m \n"
+	@printf "Linking      $@ <- $(OBJDIR)/*\n"
 	@$(CC) $(WARNINGS) -o $@ $(foreach i,$^,$(i) ) $(LDLIBS) 
-	@printf "\x1B[93mCompiled     v$(version)\x1B[0m for $(UNAME_S)\\n"
+	@printf "Compiled     v$(version) for $(UNAME_S)\\n"
 
 clean:
 	@rm -rf $(exe)
