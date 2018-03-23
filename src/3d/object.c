@@ -10,4 +10,5 @@ obj3d_t obj3dopen(char* filename) {
 	if (f == NULL) {
 		fprintf(stderr, "[object.c] Error loading object file '%s'\n", filename);
 	}
+	return object;
 }
