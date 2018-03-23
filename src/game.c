@@ -207,9 +207,9 @@ gamerenderthread(void *arg) {
 	printf("Texture: %u\n", gloadtexture("assets/wall.bmp"));
 
 
-	unsigned int shader = openshader("shader.vert", "shader.frag");
-	printf("%d\n", shader);
-	glUseProgram(shader);
+	// unsigned int shader = openshader("shader.vert", "shader.frag");
+	// printf("%d\n", shader);
+	// glUseProgram(shader);
 
 	uint64_t dt = SDL_GetPerformanceFrequency();
 
