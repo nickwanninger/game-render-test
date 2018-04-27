@@ -40,6 +40,9 @@ gopen(char* filename) {
 	g->width = surface->w;
 	g->height = surface->h;
 	g->pixels = (unsigned char*) surface->pixels;
+
+
+
 	for(i = 0; i < size * 3; i += 3) {
 		unsigned char tmp = g->pixels[i];
 		g->pixels[i] = g->pixels[i+2];

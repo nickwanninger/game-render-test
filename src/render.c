@@ -99,7 +99,7 @@ render(game_t* game) {
 
 	drawqueue.drawc = 0;
 
-	obj3d_t monkey = obj3dopen("monkey.obj");
+	obj3d_t monkey = obj3dopen("teapot.obj");
 
 	camera = *game->camera;
 	profilerstartframe();
