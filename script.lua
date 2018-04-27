@@ -7,12 +7,7 @@ ticks = 0
 
 
 function init()
-	-- game.drawwalls = false
-	-- game.drawfloor = false
-	-- game.drawfog = false
-	-- game.fogdist = 100
 	game.renderdist = 10;
-	
 end
 
 function math.sign(x)

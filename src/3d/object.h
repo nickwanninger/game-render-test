@@ -2,9 +2,12 @@
 #define __3D_OBJECT__
 
 #include "../gl/gllib.h"
+#include "vertex.h"
 
 typedef struct {
 	char* filename;
+	int facec;
+	face_t* facev;
 } obj3d_t;
 
 

@@ -12,7 +12,7 @@
 #include "script.h"
 #include "color.h"
 #include "util.h"
-
+#include "3d/object.h"
 
 #include "profiler.h"
 
@@ -81,8 +81,6 @@ lerpcolor(unsigned c1, unsigned c2, double alpha) {
 	return r << 16 | g << 8 | b;
 }
 
-
-
 unsigned
 colormul(unsigned c, float m) {
 	int r = (c >> 16) & 0xff;
@@ -98,8 +96,10 @@ colormul(unsigned c, float m) {
 void
 render(game_t* game) {
 
-	
+
 	drawqueue.drawc = 0;
+
+	obj3d_t monkey = obj3dopen("monkey.obj");
 
 	camera = *game->camera;
 	profilerstartframe();
@@ -116,8 +116,9 @@ render(game_t* game) {
 	double zCam = camera->z;
 
 	// printf("hello\n");
-	
 
+
+	glMatrixMode(GL_PROJECTION);
 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
 
 	glLoadIdentity();
@@ -136,6 +137,28 @@ render(game_t* game) {
 	glTranslatef(-xCam, -yCam, zCam);
 	glScalef(1.0f, 1.0f, -1.0f);
 
+	for (int i = 0; i < monkey.facec; i++) {
+		face_t face = monkey.facev[i];
+		if (face.count == 3) {
+			glBegin( GL_TRIANGLES );
+			for (int v = 0; v < face.count; v++) {
+				float c = 1.0f - v / (float) face.count;
+				glColor3f(c, c, c);
+				glVertex3f(face.vertices[v].position.x, face.vertices[v].position.y, face.vertices[v].position.z);
+			}
+			glEnd();
+		} else {
+			glBegin( GL_QUADS );
+			for (int v = 0; v < face.count; v++) {
+				float c = 1.0f - v / (float) face.count;
+				glColor3f(c, c, c);
+				glVertex3f(face.vertices[v].position.x, face.vertices[v].position.y, face.vertices[v].position.z);
+			}
+			glEnd();
+		}
+	}
+	glColor3f(1.0f, 1.0f, 1.0f);
+
 	// Draw the walls
 	if (game->drawwalls) {
 		int xb = 0;
@@ -144,29 +167,32 @@ render(game_t* game) {
 		int zCenter = (int)floor(zCam);
 		for (xb = xCenter - game->renderdist; xb <= xCenter + game->renderdist; xb++) {
 			for (zb = zCenter - game->renderdist; zb <= zCenter + game->renderdist; zb++) {
-				uint32_t c = getblock(level, xb, zb);
-				int xx = xb;
-				int zz = zb;
+				if (xb >= 0 && zb >= 0 && xb < game->level->width && zb < game->level->height) {
 
-				if (c == 0x000000) {
-					
-				}
-				renderfloortile(xx, zz, 1);
-				
-				if (c == 0xffffff) {
-					// WEST
-					renderwall(xx, zz, xx, zz + 1, 2);
-					// EAST
-					renderwall(xx + 1, zz + 1, xx + 1, zz, 2);
-					// NORTH
-					renderwall(xx, zz + 1, xx + 1, zz + 1, 2);
-					// SOUTH
-					renderwall(xx + 1, zz, xx, zz, 2);
+					uint32_t c = getblock(level, xb, zb);
+					int xx = xb;
+					int zz = zb;
+
+					if (c == 0x000000) {
+
+					}
+					renderfloortile(xx, zz, 1);
+
+					if (c == 0xffffff) {
+						// WEST
+						renderwall(xx, zz, xx, zz + 1, 2);
+						// EAST
+						renderwall(xx + 1, zz + 1, xx + 1, zz, 2);
+						// NORTH
+						renderwall(xx, zz + 1, xx + 1, zz + 1, 2);
+						// SOUTH
+						renderwall(xx + 1, zz, xx, zz, 2);
+					}
 				}
 			}
 		}
 	}
-	
+
 
 	glFinish();
 	SDL_GL_SwapWindow( window );
@@ -217,21 +243,21 @@ renderwall (float x0, float z0, float x1, float z1, int texture) {
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	// glUseProgram(1);
 	glBegin(GL_QUADS);
-		
-		// Top left
-		glTexCoord2f(0, 0);
-		glVertex3f(x1, 1.0f, z1);
-		
-		// Bottom left
-		glTexCoord2f(0, 1);
-		glVertex3f(x1, 0.0f, z1);
 
-		// Bottom right
-		glTexCoord2f(1, 1);
-		glVertex3f(x0, 0.0f, z0);
-		// Top right
-		glTexCoord2f(1, 0);
-		glVertex3f(x0, 1.0f, z0);
+	// Top left
+	glTexCoord2f(0, 0);
+	glVertex3f(x1, 1.0f, z1);
+
+	// Bottom left
+	glTexCoord2f(0, 1);
+	glVertex3f(x1, 0.0f, z1);
+
+	// Bottom right
+	glTexCoord2f(1, 1);
+	glVertex3f(x0, 0.0f, z0);
+	// Top right
+	glTexCoord2f(1, 0);
+	glVertex3f(x0, 1.0f, z0);
 
 	glEnd();
 }
@@ -242,7 +268,7 @@ renderwall (float x0, float z0, float x1, float z1, int texture) {
 
 void
 drawqueuepush(drawqueueitem_t item) {
-	
+
 	if (drawqueue.drawc + 1 > drawqueue.drawalloc) {
 		drawqueue.drawalloc += 10;
 		drawqueue.drawv = realloc(drawqueue.drawv, drawqueue.drawalloc * sizeof(drawqueueitem_t));
@@ -305,19 +331,19 @@ renderfromqueue(game_t* game) {
 // 			gprintf(d, 2, lineheight * currentline, "%s", linev[i]);
 // 			currentline++;
 // 		}
-		
+
 // 	}
-	
+
 
 // 	gprintf(d, 2, lineheight * currentline, ">> %s", game->console->input);
 // 	int cursoroffset = strlen(game->console->input) + 3;
-	
+
 // 	if (sin(game->frames / 10.0) < 0) {
 // 		gprintf(d, FONT_CHAR_W * cursoroffset, lineheight * currentline, "|");
 // 	}
 // 	// textcolor = 0xffffff;
-	
-	
+
+
 // }
 
 
@@ -333,7 +359,7 @@ renderfromqueue(game_t* game) {
 
 void
 gprintf(display_t d, int x, int y, const char* format, ...) {
-	int i = 0;
+	unsigned long i = 0;
 	char buffer[255];
 	va_list args;
 	va_start(args, format);
@@ -368,7 +394,7 @@ gdrawchar(display_t d, int x, int y, char c) {
 	// 			}
 	// 		}
 	// 	}
-		
+
 	// }
 }
 
@@ -400,5 +426,5 @@ int l_rendersprite(lua_State* L) {
 
 void
 renderSprite(double x, double y, double z, int texx, int texy) {
-	
+
 }

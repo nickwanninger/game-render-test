@@ -70,10 +70,10 @@ function handlecamerainput()
 	xb = getblock(newtx, ty)
 	yb = getblock(tx, newty)
 	if xb ~= 0 and xb ~= 0x00ff00 then
-		ax = 0;
+		-- ax = 0;
 	end
 	if yb ~= 0 and yb ~= 0x00ff00 then
-		az = 0;
+		-- az = 0;
 	end
 
 	speed = math.sqrt(ax * ax + az * az)

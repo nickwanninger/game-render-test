@@ -9,6 +9,9 @@ extern int window_height;
 
 bool
 contextinit() {
+
+
+
 	context = SDL_GL_CreateContext(window);
 
 	if (context == NULL) {

@@ -12,6 +12,8 @@
 	// Apple Specific compilation things here.
 	#include <openGL/GL.h>
 	#include <openGL/GLU.h>
+	#include <openGL/glext.h>
+	// #include <GL/glew.h>
 #endif
 
 #ifdef __LINUX__
@@ -24,6 +26,7 @@
 	#include <gl/gl.h>
 	#include <gl/glu.h>
 	#include <gl/wglext.h>
+	#include <gl/glew.h>
 #endif
 
 

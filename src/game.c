@@ -195,21 +195,50 @@ void*
 gamerenderthread(void *arg) {
 
 	game_t* game = (game_t*) arg;
+
 	windowinit();
 	contextinit();
+
+	printf("OPENGL VERSION: %s\n", glGetString(GL_VERSION));
 	
 	if(!initGL()) {
 		printf( "Unable to initialize OpenGL!\n" );
 		return 0;
 	}
+
+	
+
+
+	// float positions[6] = {
+	// 	-0.5f, -0.5f,
+	// 	 0.0f,  0.5f,
+	// 	 0.5f, -0.5f
+	// };
+
+	// unsigned int buffer;
+	// glGenBuffers(1, &buffer);
+	// glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	// glBufferData(GL_ARRAY_BUFFER, 6 * sizeof(float), positions, GL_STATIC_DRAW);
+
+	// glEnableVertexAttribArray(0);
+	// glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof (float) * 2, 0);
+	// int program = openshader("shader.vert", "shader.frag");
+	// glUseProgram(program);
+	// while (1) {
+	// 	glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+
+	// 	glBindBuffer(GL_ARRAY_BUFFER, buffer);
+	// 	glDrawArrays(GL_TRIANGLES, 0, 3);
+
+	// 	glFinish();
+	// 	SDL_GL_SwapWindow( window );
+	// }
+
+	
+	
 	printf("Initialized!\n");
 	printf("Texture: %u\n", gloadtexture("assets/floor.bmp"));
 	printf("Texture: %u\n", gloadtexture("assets/wall.bmp"));
-
-
-	// unsigned int shader = openshader("shader.vert", "shader.frag");
-	// printf("%d\n", shader);
-	// glUseProgram(shader);
 
 	uint64_t dt = SDL_GetPerformanceFrequency();
 
@@ -221,7 +250,9 @@ gamerenderthread(void *arg) {
 		t0 = SDL_GetPerformanceCounter();
 		render(game);
 		t1 = SDL_GetPerformanceCounter();
-		if (game->frames % 20 == 0) game->fps = dt / (t1 - t0);
+		if (game->frames % 20 == 0) {
+			game->fps = dt / (t1 - t0);
+		}
 	}
 	pthread_exit(0);
 	return 0;
@@ -276,8 +307,6 @@ gamestart(game_t* game) {
 	lua_pcall(game->lua, 0, 0, 0);
 
 	scriptinit(game);
-
-
 
 	pthread_t logicthread;
 	pthread_create(&logicthread, NULL, gamelogicthread, game);
