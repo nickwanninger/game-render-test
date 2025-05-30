@@ -224,10 +224,8 @@ gamerenderthread(void *arg) {
 	uint64_t dt = SDL_GetPerformanceFrequency();
 
 	uint64_t t0, t1;
-	int fts = 0; // Frames this second
 	while (1) {
 		game->frames++;
-		fts++;
 		t0 = SDL_GetPerformanceCounter();
 		render(game);
 		t1 = SDL_GetPerformanceCounter();

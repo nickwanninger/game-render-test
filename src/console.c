@@ -120,10 +120,9 @@ consoleinputeval(console_t* console, lua_State* L) {
 
 	lua_settop(L, 0);
 
-	int status;
 	char* command = xmalloc(CONSOLE_INPUT_LENGTH + 1);
 	memcpy(command, console->input, CONSOLE_INPUT_LENGTH);
-	status = luaL_dostring(L, command);
+	luaL_dostring(L, command);
 
 	printf("error calling 'print' (%s)\n", lua_tostring(L, 0));
 

@@ -42,9 +42,10 @@ extern pthread_mutex_t mutex;
 extern graphic_t* textures;
 extern graphic_t* font_tex;
 
-game_t* globalgame;
+extern game_t* globalgame;
+extern camera_t camera;
+
 display_t* globaldisplay;
-camera_t camera;
 
 drawqueue_t drawqueue = {
 	0,

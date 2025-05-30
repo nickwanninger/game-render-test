@@ -8,9 +8,9 @@
 
 // int logictiminghistory[PROFILER_LOG_DEPTH];
 
-double frametiminghistory[PROFILER_LOG_DEPTH];
-double ticktiminghistory[PROFILER_LOG_DEPTH];
-double luatiminghistory[PROFILER_LOG_DEPTH];
+extern double frametiminghistory[PROFILER_LOG_DEPTH];
+extern double ticktiminghistory[PROFILER_LOG_DEPTH];
+extern double luatiminghistory[PROFILER_LOG_DEPTH];
 
 
 void profilerstartframe();

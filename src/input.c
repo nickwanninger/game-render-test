@@ -9,6 +9,7 @@
 #include "script.h"
 #include "console.h"
 #include "context.h"
+#include <stdlib.h>
 
 #define __HANDLE_COLLISIONS__
 

@@ -4,6 +4,9 @@
 #include <stdio.h>
 #include "profiler.h"
 
+double frametiminghistory[PROFILER_LOG_DEPTH];
+double ticktiminghistory[PROFILER_LOG_DEPTH];
+double luatiminghistory[PROFILER_LOG_DEPTH];
 
 uint64_t framestart = 0;
 
