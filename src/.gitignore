@@ -1,7 +1,0 @@
-build/
-/game
-
-# nix result
-/result
-
-/.direnv

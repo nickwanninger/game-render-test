@@ -1,3 +1,7 @@
-*.o
-*.a
-game
+build/
+/game
+
+# nix result
+/result
+
+.direnv/
